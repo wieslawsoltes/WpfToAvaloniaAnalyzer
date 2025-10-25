@@ -10,9 +10,13 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <!-- Add analyzer as a project analyzer for testing -->
-    <ProjectAnalyzer Include="..\WpfToAvaloniaAnalyzers\WpfToAvaloniaAnalyzers.csproj" />
-    <ProjectAnalyzer Include="..\WpfToAvaloniaAnalyzers.CodeFixes\WpfToAvaloniaAnalyzers.CodeFixes.csproj" />
+    <!-- Add analyzer as a project reference for testing -->
+    <ProjectReference Include="..\WpfToAvaloniaAnalyzers\WpfToAvaloniaAnalyzers.csproj"
+                      OutputItemType="Analyzer"
+                      ReferenceOutputAssembly="false" />
+    <ProjectReference Include="..\WpfToAvaloniaAnalyzers.CodeFixes\WpfToAvaloniaAnalyzers.CodeFixes.csproj"
+                      OutputItemType="Analyzer"
+                      ReferenceOutputAssembly="false" />
   </ItemGroup>
 
   <ItemGroup>
