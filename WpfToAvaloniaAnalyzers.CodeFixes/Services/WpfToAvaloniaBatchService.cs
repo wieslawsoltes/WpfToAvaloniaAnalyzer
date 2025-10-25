@@ -37,6 +37,7 @@ public static class WpfToAvaloniaBatchService
         currentRoot = RemoveGetValueCasts(currentRoot);
         currentRoot = UpdateBaseClasses(currentRoot);
         currentRoot = TelemetryInstrumentationService.RemoveTelemetryInstrumentation(currentRoot, semanticModel);
+        currentRoot = CommonDependencyPropertyAttributeService.RemoveCommonDependencyPropertyAttributes(currentRoot, semanticModel);
         currentRoot = UpdateUsings(currentRoot);
 
         return currentRoot;

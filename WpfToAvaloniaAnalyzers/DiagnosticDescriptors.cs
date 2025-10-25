@@ -79,6 +79,15 @@ public static class DiagnosticDescriptors
         isEnabledByDefault: true,
         description: "WPF-only MS.Internal telemetry hooks should be removed or replaced when porting to Avalonia.");
 
+    public static readonly DiagnosticDescriptor WA011_RemoveCommonDependencyPropertyAttribute = new(
+        id: "WA011",
+        title: "Remove CommonDependencyProperty attribute",
+        messageFormat: "Attribute '{0}' should be removed when migrating to Avalonia",
+        category: Category,
+        defaultSeverity: DiagnosticSeverity.Info,
+        isEnabledByDefault: true,
+        description: "CommonDependencyProperty attributes are WPF-specific markers and should be removed in Avalonia.");
+
     public static readonly DiagnosticDescriptor WA007_ApplyAllAnalyzers = new(
         id: "WA007",
         title: "Apply all WPF to Avalonia conversions",
