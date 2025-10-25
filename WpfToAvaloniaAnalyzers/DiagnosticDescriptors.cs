@@ -41,4 +41,22 @@ public static class DiagnosticDescriptors
         defaultSeverity: DiagnosticSeverity.Warning,
         isEnabledByDefault: true,
         description: "Avalonia StyledProperty<T> is strongly typed, so casts on GetValue calls are not needed.");
+
+    public static readonly DiagnosticDescriptor WA005_ConvertPropertyMetadata = new(
+        id: "WA005",
+        title: "Convert WPF PropertyMetadata to Avalonia property options",
+        messageFormat: "PropertyMetadata with property changed callback should be converted to Avalonia AvaloniaProperty.Register overload",
+        category: Category,
+        defaultSeverity: DiagnosticSeverity.Warning,
+        isEnabledByDefault: true,
+        description: "WPF PropertyMetadata with property changed callbacks should be converted to use Avalonia's property changed handling patterns.");
+
+    public static readonly DiagnosticDescriptor WA006_ConvertPropertyChangedCallback = new(
+        id: "WA006",
+        title: "Convert WPF property changed callback signature to Avalonia",
+        messageFormat: "Property changed callback '{0}' should be converted to Avalonia signature",
+        category: Category,
+        defaultSeverity: DiagnosticSeverity.Warning,
+        isEnabledByDefault: true,
+        description: "WPF property changed callbacks use (DependencyObject, DependencyPropertyChangedEventArgs) signature, while Avalonia uses (AvaloniaObject, AvaloniaPropertyChangedEventArgs<T>) or a notify pattern with (AvaloniaObject, bool).");
 }
