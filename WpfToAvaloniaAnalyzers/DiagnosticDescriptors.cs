@@ -70,6 +70,15 @@ public static class DiagnosticDescriptors
         isEnabledByDefault: true,
         description: "Adds a static constructor with Property.Changed.AddClassHandler and updates the callback signature to match Avalonia conventions.");
 
+    public static readonly DiagnosticDescriptor WA010_RemoveTelemetryInstrumentation = new(
+        id: "WA010",
+        title: "Remove MS.Internal telemetry instrumentation",
+        messageFormat: "Telemetry construct '{0}' should be removed when migrating to Avalonia",
+        category: Category,
+        defaultSeverity: DiagnosticSeverity.Info,
+        isEnabledByDefault: true,
+        description: "WPF-only MS.Internal telemetry hooks should be removed or replaced when porting to Avalonia.");
+
     public static readonly DiagnosticDescriptor WA007_ApplyAllAnalyzers = new(
         id: "WA007",
         title: "Apply all WPF to Avalonia conversions",
