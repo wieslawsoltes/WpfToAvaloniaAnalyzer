@@ -24,8 +24,9 @@ namespace TestNamespace
     }
 }";
 
-        var fixedCode = @"
+var fixedCode = @"
 using System.Windows;
+using Avalonia;
 
 namespace TestNamespace
 {
@@ -42,7 +43,8 @@ namespace TestNamespace
             .WithLocation(0)
             .WithArguments("OnPropertyChanged");
 
-        await CodeFixTestHelper.VerifyCodeFixAsync<PropertyChangedCallbackAnalyzer, PropertyChangedCallbackCodeFixProvider>(test, expected, fixedCode);
+        await CodeFixTestHelper.VerifyCodeFixAsync<PropertyChangedCallbackAnalyzer, PropertyChangedCallbackCodeFixProvider>(
+            test, expected, fixedCode, compilerDiagnostics: CompilerDiagnostics.None);
     }
 
     [Fact]
@@ -67,9 +69,10 @@ namespace TestNamespace
     }
 }";
 
-        var fixedCode = @"
+var fixedCode = @"
 using System.Windows;
 using System.Windows.Controls;
+using Avalonia;
 
 namespace TestNamespace
 {
@@ -90,7 +93,8 @@ namespace TestNamespace
             .WithLocation(0)
             .WithArguments("OnCountChanged");
 
-        await CodeFixTestHelper.VerifyCodeFixAsync<PropertyChangedCallbackAnalyzer, PropertyChangedCallbackCodeFixProvider>(test, expected, fixedCode);
+        await CodeFixTestHelper.VerifyCodeFixAsync<PropertyChangedCallbackAnalyzer, PropertyChangedCallbackCodeFixProvider>(
+            test, expected, fixedCode, compilerDiagnostics: CompilerDiagnostics.None);
     }
 
     [Fact]
@@ -110,8 +114,9 @@ namespace TestNamespace
     }
 }";
 
-        var fixedCode = @"
+var fixedCode = @"
 using System.Windows;
+using Avalonia;
 
 namespace TestNamespace
 {
@@ -128,7 +133,8 @@ namespace TestNamespace
             .WithLocation(0)
             .WithArguments("OnNameChanged");
 
-        await CodeFixTestHelper.VerifyCodeFixAsync<PropertyChangedCallbackAnalyzer, PropertyChangedCallbackCodeFixProvider>(test, expected, fixedCode);
+        await CodeFixTestHelper.VerifyCodeFixAsync<PropertyChangedCallbackAnalyzer, PropertyChangedCallbackCodeFixProvider>(
+            test, expected, fixedCode, compilerDiagnostics: CompilerDiagnostics.None);
     }
 
     [Fact]
@@ -148,8 +154,9 @@ namespace TestNamespace
     }
 }";
 
-        var fixedCode = @"
+var fixedCode = @"
 using System.Windows;
+using Avalonia;
 
 namespace TestNamespace
 {
@@ -166,6 +173,7 @@ namespace TestNamespace
             .WithLocation(0)
             .WithArguments("OnScoreChanged");
 
-        await CodeFixTestHelper.VerifyCodeFixAsync<PropertyChangedCallbackAnalyzer, PropertyChangedCallbackCodeFixProvider>(test, expected, fixedCode);
+        await CodeFixTestHelper.VerifyCodeFixAsync<PropertyChangedCallbackAnalyzer, PropertyChangedCallbackCodeFixProvider>(
+            test, expected, fixedCode, compilerDiagnostics: CompilerDiagnostics.None);
     }
 }

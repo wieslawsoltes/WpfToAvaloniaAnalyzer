@@ -39,6 +39,24 @@ public static class PropertyChangedCallbackService
 
         var newMethodDeclaration = methodDeclaration.WithParameterList(newParameterList);
 
-        return root.ReplaceNode(methodDeclaration, newMethodDeclaration);
+        var updatedRoot = root.ReplaceNode(methodDeclaration, newMethodDeclaration);
+
+        if (updatedRoot is CompilationUnitSyntax compilationUnit)
+        {
+            var usings = compilationUnit.Usings.ToList();
+            var hasAvaloniaUsing = usings.Any(u => u.Name?.ToString() == "Avalonia");
+
+            if (!hasAvaloniaUsing)
+            {
+                usings.Add(SyntaxFactory.UsingDirective(SyntaxFactory.IdentifierName("Avalonia"))
+                    .WithUsingKeyword(SyntaxFactory.Token(SyntaxKind.UsingKeyword).WithTrailingTrivia(SyntaxFactory.Space))
+                    .WithSemicolonToken(SyntaxFactory.Token(SyntaxKind.SemicolonToken).WithTrailingTrivia(SyntaxFactory.LineFeed)));
+                compilationUnit = compilationUnit.WithUsings(SyntaxFactory.List(usings));
+            }
+
+            updatedRoot = compilationUnit;
+        }
+
+        return updatedRoot;
     }
 }

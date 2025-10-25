@@ -13,12 +13,12 @@ namespace WpfToAvaloniaAnalyzers.Tests.Helpers;
 
 public static class CodeFixTestHelper
 {
-    public static async Task VerifyCodeFixAsync(string source, DiagnosticResult expected, string fixedSource, CompilerDiagnostics compilerDiagnostics = CompilerDiagnostics.None)
+    public static async Task VerifyCodeFixAsync(string source, DiagnosticResult expected, string fixedSource, CompilerDiagnostics compilerDiagnostics = CompilerDiagnostics.Errors)
     {
         await VerifyCodeFixAsync<DependencyPropertyAnalyzer, DependencyPropertyCodeFixProvider>(source, expected, fixedSource, compilerDiagnostics);
     }
 
-    public static async Task VerifyCodeFixAsync<TAnalyzer, TCodeFix>(string source, DiagnosticResult expected, string fixedSource, CompilerDiagnostics compilerDiagnostics = CompilerDiagnostics.None)
+    public static async Task VerifyCodeFixAsync<TAnalyzer, TCodeFix>(string source, DiagnosticResult expected, string fixedSource, CompilerDiagnostics compilerDiagnostics = CompilerDiagnostics.Errors)
         where TAnalyzer : DiagnosticAnalyzer, new()
         where TCodeFix : Microsoft.CodeAnalysis.CodeFixes.CodeFixProvider, new()
     {
@@ -43,7 +43,10 @@ public static class CodeFixTestHelper
         test.FixedState.AdditionalReferences.Add(MetadataReference.CreateFromFile(Path.Combine(wpfRefPath, "PresentationCore.dll")));
         test.FixedState.AdditionalReferences.Add(MetadataReference.CreateFromFile(Path.Combine(wpfRefPath, "PresentationFramework.dll")));
 
-        AddAvaloniaReferences(test.TestState.AdditionalReferences, avaloniaRefPath);
+        if (NeedsAvaloniaReferences(source))
+        {
+            AddAvaloniaReferences(test.TestState.AdditionalReferences, avaloniaRefPath);
+        }
         AddAvaloniaReferences(test.FixedState.AdditionalReferences, avaloniaRefPath);
 
         test.CompilerDiagnostics = compilerDiagnostics;
@@ -53,7 +56,7 @@ public static class CodeFixTestHelper
     }
 
     public static Task VerifyCodeFixAsync(string source, string fixedSource, params DiagnosticResult[] expected) =>
-        VerifyCodeFixAsync(source, fixedSource, CompilerDiagnostics.None, expected);
+        VerifyCodeFixAsync(source, fixedSource, CompilerDiagnostics.Errors, expected);
 
     public static async Task VerifyCodeFixAsync(string source, string fixedSource, CompilerDiagnostics compilerDiagnostics, params DiagnosticResult[] expected)
     {
@@ -81,7 +84,10 @@ public static class CodeFixTestHelper
         test.FixedState.AdditionalReferences.Add(MetadataReference.CreateFromFile(Path.Combine(wpfRefPath, "PresentationCore.dll")));
         test.FixedState.AdditionalReferences.Add(MetadataReference.CreateFromFile(Path.Combine(wpfRefPath, "PresentationFramework.dll")));
 
-        AddAvaloniaReferences(test.TestState.AdditionalReferences, avaloniaRefPath);
+        if (NeedsAvaloniaReferences(source))
+        {
+            AddAvaloniaReferences(test.TestState.AdditionalReferences, avaloniaRefPath);
+        }
         AddAvaloniaReferences(test.FixedState.AdditionalReferences, avaloniaRefPath);
 
         test.CompilerDiagnostics = compilerDiagnostics;
@@ -213,4 +219,7 @@ public static class CodeFixTestHelper
             }
         }
     }
+
+    private static bool NeedsAvaloniaReferences(string source) =>
+        source.Contains("Avalonia", StringComparison.Ordinal);
 }

@@ -37,13 +37,15 @@ namespace TestNamespace
     }
 }";
 
-        var fixedCode = @"
+var fixedCode = @"
 using System.Windows;
 using System.Windows.Controls;
+using Avalonia;
+using Avalonia.Controls;
 
 namespace TestNamespace
 {
-    public class MyControl : Control
+    public class MyControl : Avalonia.Controls.Control
     {
         public static readonly StyledProperty<string> MyPropertyProperty = AvaloniaProperty.Register<MyControl, string>(nameof(MyProperty), default(string));
 
@@ -91,13 +93,15 @@ namespace TestNamespace
     }
 }";
 
-        var fixedCode = @"
+var fixedCode = @"
 using System.Windows;
 using System.Windows.Controls;
+using Avalonia;
+using Avalonia.Controls;
 
 namespace TestNamespace
 {
-    public class MyControl : Control
+    public class MyControl : Avalonia.Controls.Control
     {
         public static readonly StyledProperty<string> TitleProperty = AvaloniaProperty.Register<MyControl, string>(nameof(Title), default(string));
 

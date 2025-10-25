@@ -45,7 +45,7 @@ using Avalonia.Controls;
 
 namespace TestNamespace
 {
-    public class MyControl : Control
+    public class MyControl : Avalonia.Controls.Control
     {
         static MyControl()
         {

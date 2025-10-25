@@ -147,6 +147,13 @@ public static class DependencyPropertyService
         // Replace the field declaration
         var updatedRoot = root.ReplaceNode(fieldDeclaration, newFieldDeclaration);
 
+        if (updatedRoot is CompilationUnitSyntax finalCompilationUnit)
+        {
+            updatedRoot = UsingDirectivesService.AddAvaloniaUsings(finalCompilationUnit);
+        }
+
+        updatedRoot = BaseClassService.UpdateWpfBaseClassToAvalonia(updatedRoot);
+
         if (!hasPropertyMetadata || propertyChangedCallback == null)
             return updatedRoot;
 
@@ -163,12 +170,21 @@ public static class DependencyPropertyService
 
         var ownerTypeSyntax = ownerType ?? SyntaxFactory.IdentifierName(updatedClass.Identifier);
 
-        return ClassHandlerService.AddClassHandler(
+        updatedRoot = ClassHandlerService.AddClassHandler(
             updatedRoot,
             updatedClass,
             fieldVariable.Identifier.Text,
             propertyChangedCallback,
             ownerTypeSyntax,
             propertyType);
+
+        if (updatedRoot is CompilationUnitSyntax postHandlerCompilationUnit)
+        {
+            updatedRoot = UsingDirectivesService.AddAvaloniaUsings(postHandlerCompilationUnit);
+        }
+
+        updatedRoot = BaseClassService.UpdateWpfBaseClassToAvalonia(updatedRoot);
+
+        return updatedRoot;
     }
 }

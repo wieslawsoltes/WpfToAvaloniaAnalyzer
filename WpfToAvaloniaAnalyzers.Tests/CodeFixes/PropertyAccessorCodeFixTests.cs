@@ -58,7 +58,7 @@ namespace TestNamespace
             .WithLocation(0);
 
         await CodeFixTestHelper.VerifyCodeFixAsync<PropertyAccessorAnalyzer, PropertyAccessorCodeFixProvider>(
-            testCode, expected, fixedCode);
+            testCode, expected, fixedCode, compilerDiagnostics: CompilerDiagnostics.None);
     }
 
     [Fact]
@@ -112,7 +112,7 @@ namespace TestNamespace
             .WithLocation(0);
 
         await CodeFixTestHelper.VerifyCodeFixAsync<PropertyAccessorAnalyzer, PropertyAccessorCodeFixProvider>(
-            testCode, expected, fixedCode);
+            testCode, expected, fixedCode, compilerDiagnostics: CompilerDiagnostics.None);
     }
 
     [Fact]
@@ -166,7 +166,7 @@ namespace TestNamespace
             .WithLocation(0);
 
         await CodeFixTestHelper.VerifyCodeFixAsync<PropertyAccessorAnalyzer, PropertyAccessorCodeFixProvider>(
-            testCode, expected, fixedCode);
+            testCode, expected, fixedCode, compilerDiagnostics: CompilerDiagnostics.None);
     }
 
     [Fact]
@@ -220,6 +220,6 @@ namespace TestNamespace
             .WithLocation(0);
 
         await CodeFixTestHelper.VerifyCodeFixAsync<PropertyAccessorAnalyzer, PropertyAccessorCodeFixProvider>(
-            testCode, expected, fixedCode);
+            testCode, expected, fixedCode, compilerDiagnostics: CompilerDiagnostics.None);
     }
 }
