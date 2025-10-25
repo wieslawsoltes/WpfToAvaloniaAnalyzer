@@ -1,0 +1,6 @@
+[submodule "extern/Avalonia"]
+	path = extern/Avalonia
+	url = https://github.com/wieslawsoltes/Avalonia.git
+[submodule "extern/wpf"]
+	path = extern/wpf
+	url = https://github.com/wieslawsoltes/wpf.git
