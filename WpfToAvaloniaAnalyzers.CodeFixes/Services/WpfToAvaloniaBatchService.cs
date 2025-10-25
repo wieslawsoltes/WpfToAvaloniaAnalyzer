@@ -61,7 +61,7 @@ public static class WpfToAvaloniaBatchService
             if (currentVariable == null)
                 continue;
 
-            currentRoot = DependencyPropertyService.ConvertDependencyPropertyToStyledProperty(currentRoot, currentVariable);
+            currentRoot = DependencyPropertyService.ConvertDependencyPropertyToStyledProperty(currentRoot, currentVariable, semanticModel);
         }
 
         return currentRoot;

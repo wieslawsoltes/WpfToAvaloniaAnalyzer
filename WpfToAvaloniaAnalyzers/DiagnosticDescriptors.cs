@@ -88,6 +88,15 @@ public static class DiagnosticDescriptors
         isEnabledByDefault: true,
         description: "CommonDependencyProperty attributes are WPF-specific markers and should be removed in Avalonia.");
 
+    public static readonly DiagnosticDescriptor WA012_ConvertAttachedDependencyProperty = new(
+        id: "WA012",
+        title: "Convert WPF attached DependencyProperty to Avalonia attached property",
+        messageFormat: "Attached DependencyProperty '{0}' should be converted to an Avalonia attached property",
+        category: Category,
+        defaultSeverity: DiagnosticSeverity.Warning,
+        isEnabledByDefault: true,
+        description: "Attached DependencyProperty declarations should be converted to AvaloniaProperty.RegisterAttached for Avalonia compatibility.");
+
     public static readonly DiagnosticDescriptor WA007_ApplyAllAnalyzers = new(
         id: "WA007",
         title: "Apply all WPF to Avalonia conversions",

@@ -60,6 +60,12 @@ public sealed class WpfToAvaloniaFileAnalyzer : DiagnosticAnalyzer
             {
                 return location;
             }
+
+            var attachedLocation = GetAttachedPropertyIssueLocation(field, semanticModel, cancellationToken);
+            if (attachedLocation != null)
+            {
+                return attachedLocation;
+            }
         }
 
         foreach (var classDeclaration in root.DescendantNodes().OfType<ClassDeclarationSyntax>())
@@ -191,5 +197,42 @@ public sealed class WpfToAvaloniaFileAnalyzer : DiagnosticAnalyzer
 
         return firstParamType.Contains("DependencyObject") &&
                secondParamType.Contains("DependencyPropertyChangedEventArgs");
+    }
+
+    private static Location? GetAttachedPropertyIssueLocation(
+        FieldDeclarationSyntax fieldDeclaration,
+        SemanticModel semanticModel,
+        CancellationToken cancellationToken)
+    {
+        if (!fieldDeclaration.Modifiers.Any(SyntaxKind.StaticKeyword) ||
+            !fieldDeclaration.Modifiers.Any(SyntaxKind.ReadOnlyKeyword))
+        {
+            return null;
+        }
+
+        if (fieldDeclaration.Declaration.Type is not IdentifierNameSyntax identifier ||
+            identifier.Identifier.Text != "DependencyProperty")
+        {
+            return null;
+        }
+
+        foreach (var variable in fieldDeclaration.Declaration.Variables)
+        {
+            if (variable.Initializer?.Value is not InvocationExpressionSyntax invocation)
+                continue;
+
+            var symbolInfo = semanticModel.GetSymbolInfo(invocation, cancellationToken);
+            if (symbolInfo.Symbol is not IMethodSymbol methodSymbol)
+                continue;
+
+            if (methodSymbol.Name == "RegisterAttached" &&
+                methodSymbol.ContainingType?.Name == "DependencyProperty" &&
+                methodSymbol.ContainingType?.ContainingNamespace?.ToDisplayString() == "System.Windows")
+            {
+                return variable.Identifier.GetLocation();
+            }
+        }
+
+        return null;
     }
 }

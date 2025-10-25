@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using Microsoft.CodeAnalysis;
@@ -10,7 +11,8 @@ public static class DependencyPropertyService
 {
     public static SyntaxNode ConvertDependencyPropertyToStyledProperty(
         SyntaxNode root,
-        VariableDeclaratorSyntax fieldVariable)
+        VariableDeclaratorSyntax fieldVariable,
+        SemanticModel? semanticModel = null)
     {
         var fieldDeclaration = fieldVariable.Parent?.Parent as FieldDeclarationSyntax;
         if (fieldDeclaration == null)
@@ -20,11 +22,31 @@ public static class DependencyPropertyService
         if (fieldVariable.Initializer?.Value is not InvocationExpressionSyntax invocation)
             return root;
 
+        var memberAccess = invocation.Expression as MemberAccessExpressionSyntax;
+        var methodName = (memberAccess?.Name as IdentifierNameSyntax)?.Identifier.Text;
+
+        var isRegisterAttached = string.Equals(methodName, "RegisterAttached", System.StringComparison.Ordinal);
+
+        if (semanticModel != null && semanticModel.SyntaxTree == invocation.SyntaxTree)
+        {
+            var symbolInfo = semanticModel.GetSymbolInfo(invocation);
+            if (symbolInfo.Symbol is IMethodSymbol methodSymbol &&
+                methodSymbol.Name == "RegisterAttached" &&
+                methodSymbol.ContainingType?.Name == "DependencyProperty")
+            {
+                isRegisterAttached = true;
+            }
+        }
+
+        if (isRegisterAttached)
+        {
+            return AttachedPropertyConversionService.ConvertAttachedProperty(root, fieldVariable, semanticModel);
+        }
+
         var arguments = invocation.ArgumentList.Arguments;
         if (arguments.Count < 3)
             return root;
 
-        // Get property name, property type, and owner type
         var propertyNameArg = arguments[0].Expression;
         var propertyTypeArg = arguments[1].Expression;
         var ownerTypeArg = arguments[2].Expression;
@@ -83,12 +105,10 @@ public static class DependencyPropertyService
                 .WithTrailingTrivia(SyntaxFactory.Space);
         }
 
-        // Build the AvaloniaProperty.Register<TOwner, TValue>(name, defaultValue) call
         InvocationExpressionSyntax registerCall;
 
         if (propertyType != null && ownerType != null)
         {
-            // Create generic method call: AvaloniaProperty.Register<TOwner, TValue>
             var genericRegister = SyntaxFactory.GenericName(
                 SyntaxFactory.Identifier("Register"),
                 SyntaxFactory.TypeArgumentList(

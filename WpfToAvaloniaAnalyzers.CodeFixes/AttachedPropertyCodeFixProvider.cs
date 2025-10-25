@@ -11,13 +11,13 @@ using WpfToAvaloniaAnalyzers.CodeFixes.Services;
 
 namespace WpfToAvaloniaAnalyzers.CodeFixes;
 
-[ExportCodeFixProvider(LanguageNames.CSharp, Name = nameof(PropertyMetadataClassHandlerCodeFixProvider)), Shared]
-public sealed class PropertyMetadataClassHandlerCodeFixProvider : CodeFixProvider
+[ExportCodeFixProvider(LanguageNames.CSharp, Name = nameof(AttachedPropertyCodeFixProvider)), Shared]
+public sealed class AttachedPropertyCodeFixProvider : CodeFixProvider
 {
-    private const string Title = "Convert PropertyMetadata callback to class handler";
+    private const string Title = "Convert to Avalonia attached property";
 
     public override ImmutableArray<string> FixableDiagnosticIds =>
-        ImmutableArray.Create(DiagnosticDescriptors.WA008_ConvertPropertyMetadataCallbackToClassHandler.Id);
+        ImmutableArray.Create(DiagnosticDescriptors.WA012_ConvertAttachedDependencyProperty.Id);
 
     public override FixAllProvider GetFixAllProvider() => WellKnownFixAllProviders.BatchFixer;
 
@@ -30,32 +30,23 @@ public sealed class PropertyMetadataClassHandlerCodeFixProvider : CodeFixProvide
         var diagnostic = context.Diagnostics.First();
         var diagnosticSpan = diagnostic.Location.SourceSpan;
 
-        var propertyMetadata = root.FindToken(diagnosticSpan.Start).Parent?.AncestorsAndSelf()
-            .OfType<ObjectCreationExpressionSyntax>()
-            .FirstOrDefault();
-
-        if (propertyMetadata == null)
-            return;
-
-        var fieldVariable = propertyMetadata.Ancestors()
+        var variable = root.FindToken(diagnosticSpan.Start)
+            .Parent?.AncestorsAndSelf()
             .OfType<VariableDeclaratorSyntax>()
             .FirstOrDefault();
 
-        if (fieldVariable == null)
+        if (variable == null)
             return;
 
         context.RegisterCodeFix(
             CodeAction.Create(
                 Title,
-                c => ConvertAsync(context.Document, fieldVariable, c),
+                cancellationToken => ConvertAsync(context.Document, variable, cancellationToken),
                 Title),
             diagnostic);
     }
 
-    private static async Task<Document> ConvertAsync(
-        Document document,
-        VariableDeclaratorSyntax fieldVariable,
-        CancellationToken cancellationToken)
+    private static async Task<Document> ConvertAsync(Document document, VariableDeclaratorSyntax variable, CancellationToken cancellationToken)
     {
         var root = await document.GetSyntaxRootAsync(cancellationToken).ConfigureAwait(false);
         if (root == null)
@@ -65,7 +56,7 @@ public sealed class PropertyMetadataClassHandlerCodeFixProvider : CodeFixProvide
         if (semanticModel == null)
             return document;
 
-        var newRoot = DependencyPropertyService.ConvertDependencyPropertyToStyledProperty(root, fieldVariable, semanticModel);
-        return document.WithSyntaxRoot(newRoot);
+        var updatedRoot = AttachedPropertyConversionService.ConvertAttachedProperty(root, variable, semanticModel);
+        return document.WithSyntaxRoot(updatedRoot);
     }
 }

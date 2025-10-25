@@ -56,7 +56,11 @@ public class DependencyPropertyCodeFixProvider : CodeFixProvider
         if (root == null)
             return document;
 
-        var newRoot = DependencyPropertyService.ConvertDependencyPropertyToStyledProperty(root, fieldVariable);
+        var semanticModel = await document.GetSemanticModelAsync(cancellationToken).ConfigureAwait(false);
+        if (semanticModel == null)
+            return document;
+
+        var newRoot = DependencyPropertyService.ConvertDependencyPropertyToStyledProperty(root, fieldVariable, semanticModel);
         return document.WithSyntaxRoot(newRoot);
     }
 }

@@ -43,7 +43,7 @@ public static class CodeFixTestHelper
         test.FixedState.AdditionalReferences.Add(MetadataReference.CreateFromFile(Path.Combine(wpfRefPath, "PresentationCore.dll")));
         test.FixedState.AdditionalReferences.Add(MetadataReference.CreateFromFile(Path.Combine(wpfRefPath, "PresentationFramework.dll")));
 
-        if (NeedsAvaloniaReferences(source))
+        if (NeedsAvaloniaReferences(source) || NeedsAvaloniaReferences(fixedSource))
         {
             AddAvaloniaReferences(test.TestState.AdditionalReferences, avaloniaRefPath);
         }
@@ -84,7 +84,7 @@ public static class CodeFixTestHelper
         test.FixedState.AdditionalReferences.Add(MetadataReference.CreateFromFile(Path.Combine(wpfRefPath, "PresentationCore.dll")));
         test.FixedState.AdditionalReferences.Add(MetadataReference.CreateFromFile(Path.Combine(wpfRefPath, "PresentationFramework.dll")));
 
-        if (NeedsAvaloniaReferences(source))
+        if (NeedsAvaloniaReferences(source) || NeedsAvaloniaReferences(fixedSource))
         {
             AddAvaloniaReferences(test.TestState.AdditionalReferences, avaloniaRefPath);
         }
@@ -145,7 +145,8 @@ public static class CodeFixTestHelper
         var project = workspace.AddProject("WpfTestProject", LanguageNames.CSharp);
 
         // Add .NET 8.0 references
-        foreach (var reference in ReferenceAssemblies.Net.Net80.ResolveAsync(LanguageNames.CSharp, CancellationToken.None).Result)
+        var frameworkReferences = await ReferenceAssemblies.Net.Net80.ResolveAsync(LanguageNames.CSharp, CancellationToken.None).ConfigureAwait(false);
+        foreach (var reference in frameworkReferences)
         {
             project = project.AddMetadataReference(reference);
         }
