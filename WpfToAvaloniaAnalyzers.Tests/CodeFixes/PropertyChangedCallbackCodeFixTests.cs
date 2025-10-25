@@ -7,7 +7,7 @@ namespace WpfToAvaloniaAnalyzers.Tests.CodeFixes;
 
 public class PropertyChangedCallbackCodeFixTests
 {
-    [Fact(Skip = "Formatting issue in test - works in practice")]
+    [Fact]
     public async Task ConvertWpfCallbackSignatureWithoutTypeHint_DefaultsToObject()
     {
         var test = @"
