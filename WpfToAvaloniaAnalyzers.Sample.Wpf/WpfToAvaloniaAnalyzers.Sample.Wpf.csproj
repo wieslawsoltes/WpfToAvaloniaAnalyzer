@@ -1,0 +1,26 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <EnableWindowsTargeting>true</EnableWindowsTargeting>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Add analyzer as a project analyzer for testing -->
+    <ProjectAnalyzer Include="..\WpfToAvaloniaAnalyzers\WpfToAvaloniaAnalyzers.csproj" />
+    <ProjectAnalyzer Include="..\WpfToAvaloniaAnalyzers.CodeFixes\WpfToAvaloniaAnalyzers.CodeFixes.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Exclude DockPanel.cs from compilation but keep it in the project for reference -->
+    <Compile Remove="Reference\DockPanel.cs" />
+    <None Include="Reference\DockPanel.cs">
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
+</Project>

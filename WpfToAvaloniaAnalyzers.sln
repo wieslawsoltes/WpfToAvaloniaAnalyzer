@@ -1,0 +1,40 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.31903.59
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WpfToAvaloniaAnalyzers", "WpfToAvaloniaAnalyzers\WpfToAvaloniaAnalyzers.csproj", "{941272AC-99BC-4AE6-ABDE-12D62E44B114}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WpfToAvaloniaAnalyzers.Tests", "WpfToAvaloniaAnalyzers.Tests\WpfToAvaloniaAnalyzers.Tests.csproj", "{C7E7B842-1E5A-4149-8871-BB2304F5E312}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WpfToAvaloniaAnalyzers.CodeFixes", "WpfToAvaloniaAnalyzers.CodeFixes\WpfToAvaloniaAnalyzers.CodeFixes.csproj", "{BDE7E33A-41FD-4EA9-ACE2-8D33F90BCA65}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WpfToAvaloniaAnalyzers.Sample.Wpf", "WpfToAvaloniaAnalyzers.Sample.Wpf\WpfToAvaloniaAnalyzers.Sample.Wpf.csproj", "{EA74EB42-DEBD-4809-91FA-AE68149AD07A}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{941272AC-99BC-4AE6-ABDE-12D62E44B114}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{941272AC-99BC-4AE6-ABDE-12D62E44B114}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{941272AC-99BC-4AE6-ABDE-12D62E44B114}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{941272AC-99BC-4AE6-ABDE-12D62E44B114}.Release|Any CPU.Build.0 = Release|Any CPU
+		{C7E7B842-1E5A-4149-8871-BB2304F5E312}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{C7E7B842-1E5A-4149-8871-BB2304F5E312}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{C7E7B842-1E5A-4149-8871-BB2304F5E312}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{C7E7B842-1E5A-4149-8871-BB2304F5E312}.Release|Any CPU.Build.0 = Release|Any CPU
+		{BDE7E33A-41FD-4EA9-ACE2-8D33F90BCA65}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{BDE7E33A-41FD-4EA9-ACE2-8D33F90BCA65}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{BDE7E33A-41FD-4EA9-ACE2-8D33F90BCA65}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{BDE7E33A-41FD-4EA9-ACE2-8D33F90BCA65}.Release|Any CPU.Build.0 = Release|Any CPU
+		{EA74EB42-DEBD-4809-91FA-AE68149AD07A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{EA74EB42-DEBD-4809-91FA-AE68149AD07A}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{EA74EB42-DEBD-4809-91FA-AE68149AD07A}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{EA74EB42-DEBD-4809-91FA-AE68149AD07A}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+EndGlobal
