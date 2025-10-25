@@ -59,4 +59,24 @@ public static class DiagnosticDescriptors
         defaultSeverity: DiagnosticSeverity.Warning,
         isEnabledByDefault: true,
         description: "WPF property changed callbacks use (DependencyObject, DependencyPropertyChangedEventArgs) signature, while Avalonia uses (AvaloniaObject, AvaloniaPropertyChangedEventArgs<T>) or a notify pattern with (AvaloniaObject, bool).");
+
+
+    public static readonly DiagnosticDescriptor WA008_ConvertPropertyMetadataCallbackToClassHandler = new(
+        id: "WA008",
+        title: "Convert PropertyMetadata callback to Avalonia class handler",
+        messageFormat: "Convert PropertyMetadata callback to Avalonia class handler pattern",
+        category: Category,
+        defaultSeverity: DiagnosticSeverity.Info,
+        isEnabledByDefault: true,
+        description: "Adds a static constructor with Property.Changed.AddClassHandler and updates the callback signature to match Avalonia conventions.");
+
+    public static readonly DiagnosticDescriptor WA007_ApplyAllAnalyzers = new(
+        id: "WA007",
+        title: "Apply all WPF to Avalonia conversions",
+        messageFormat: "Apply all WPF to Avalonia conversions in this file",
+        category: Category,
+        defaultSeverity: DiagnosticSeverity.Info,
+        isEnabledByDefault: true,
+        description: "Applies all available WPF to Avalonia code fixes for this file.",
+        customTags: WellKnownDiagnosticTags.CompilationEnd);
 }

@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading;
@@ -12,12 +13,12 @@ namespace WpfToAvaloniaAnalyzers.Tests.Helpers;
 
 public static class CodeFixTestHelper
 {
-    public static async Task VerifyCodeFixAsync(string source, DiagnosticResult expected, string fixedSource)
+    public static async Task VerifyCodeFixAsync(string source, DiagnosticResult expected, string fixedSource, CompilerDiagnostics compilerDiagnostics = CompilerDiagnostics.None)
     {
-        await VerifyCodeFixAsync<DependencyPropertyAnalyzer, DependencyPropertyCodeFixProvider>(source, expected, fixedSource);
+        await VerifyCodeFixAsync<DependencyPropertyAnalyzer, DependencyPropertyCodeFixProvider>(source, expected, fixedSource, compilerDiagnostics);
     }
 
-    public static async Task VerifyCodeFixAsync<TAnalyzer, TCodeFix>(string source, DiagnosticResult expected, string fixedSource)
+    public static async Task VerifyCodeFixAsync<TAnalyzer, TCodeFix>(string source, DiagnosticResult expected, string fixedSource, CompilerDiagnostics compilerDiagnostics = CompilerDiagnostics.None)
         where TAnalyzer : DiagnosticAnalyzer, new()
         where TCodeFix : Microsoft.CodeAnalysis.CodeFixes.CodeFixProvider, new()
     {
@@ -32,6 +33,7 @@ public static class CodeFixTestHelper
         // Add WPF assemblies from NuGet package
         var nugetPackagesPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".nuget", "packages");
         var wpfRefPath = Path.Combine(nugetPackagesPath, "microsoft.windowsdesktop.app.ref", "8.0.0", "ref", "net8.0");
+        var avaloniaRefPath = GetAvaloniaReferencePath(nugetPackagesPath);
 
         test.TestState.AdditionalReferences.Add(MetadataReference.CreateFromFile(Path.Combine(wpfRefPath, "WindowsBase.dll")));
         test.TestState.AdditionalReferences.Add(MetadataReference.CreateFromFile(Path.Combine(wpfRefPath, "PresentationCore.dll")));
@@ -41,14 +43,19 @@ public static class CodeFixTestHelper
         test.FixedState.AdditionalReferences.Add(MetadataReference.CreateFromFile(Path.Combine(wpfRefPath, "PresentationCore.dll")));
         test.FixedState.AdditionalReferences.Add(MetadataReference.CreateFromFile(Path.Combine(wpfRefPath, "PresentationFramework.dll")));
 
-        // Suppress compiler errors in tests
-        test.CompilerDiagnostics = CompilerDiagnostics.None;
+        AddAvaloniaReferences(test.TestState.AdditionalReferences, avaloniaRefPath);
+        AddAvaloniaReferences(test.FixedState.AdditionalReferences, avaloniaRefPath);
+
+        test.CompilerDiagnostics = compilerDiagnostics;
 
         test.ExpectedDiagnostics.Add(expected);
         await test.RunAsync();
     }
 
-    public static async Task VerifyCodeFixAsync(string source, string fixedSource, params DiagnosticResult[] expected)
+    public static Task VerifyCodeFixAsync(string source, string fixedSource, params DiagnosticResult[] expected) =>
+        VerifyCodeFixAsync(source, fixedSource, CompilerDiagnostics.None, expected);
+
+    public static async Task VerifyCodeFixAsync(string source, string fixedSource, CompilerDiagnostics compilerDiagnostics, params DiagnosticResult[] expected)
     {
         var test = new CSharpCodeFixTest<
             DependencyPropertyAnalyzer,
@@ -64,6 +71,7 @@ public static class CodeFixTestHelper
         // Add WPF assemblies from NuGet package
         var nugetPackagesPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".nuget", "packages");
         var wpfRefPath = Path.Combine(nugetPackagesPath, "microsoft.windowsdesktop.app.ref", "8.0.0", "ref", "net8.0");
+        var avaloniaRefPath = GetAvaloniaReferencePath(nugetPackagesPath);
 
         test.TestState.AdditionalReferences.Add(MetadataReference.CreateFromFile(Path.Combine(wpfRefPath, "WindowsBase.dll")));
         test.TestState.AdditionalReferences.Add(MetadataReference.CreateFromFile(Path.Combine(wpfRefPath, "PresentationCore.dll")));
@@ -73,8 +81,10 @@ public static class CodeFixTestHelper
         test.FixedState.AdditionalReferences.Add(MetadataReference.CreateFromFile(Path.Combine(wpfRefPath, "PresentationCore.dll")));
         test.FixedState.AdditionalReferences.Add(MetadataReference.CreateFromFile(Path.Combine(wpfRefPath, "PresentationFramework.dll")));
 
-        // Suppress compiler errors in tests
-        test.CompilerDiagnostics = CompilerDiagnostics.None;
+        AddAvaloniaReferences(test.TestState.AdditionalReferences, avaloniaRefPath);
+        AddAvaloniaReferences(test.FixedState.AdditionalReferences, avaloniaRefPath);
+
+        test.CompilerDiagnostics = compilerDiagnostics;
 
         test.ExpectedDiagnostics.AddRange(expected);
         await test.RunAsync();
@@ -155,6 +165,52 @@ public static class CodeFixTestHelper
         {
             var errorMessages = string.Join(Environment.NewLine, diagnostics.Select(d => d.ToString()));
             throw new InvalidOperationException($"WPF test code has compilation errors:{Environment.NewLine}{errorMessages}");
+        }
+    }
+
+    private static string? GetAvaloniaReferencePath(string nugetPackagesPath)
+    {
+        var avaloniaPackagePath = Path.Combine(nugetPackagesPath, "avalonia");
+        if (!Directory.Exists(avaloniaPackagePath))
+            return null;
+
+        var latestVersionPath = Directory.GetDirectories(avaloniaPackagePath)
+            .Select(dir => new { Path = dir, Version = ParseVersion(Path.GetFileName(dir)) })
+            .Where(x => x.Version != null)
+            .OrderByDescending(x => x.Version)
+            .Select(x => x.Path)
+            .FirstOrDefault();
+
+        if (latestVersionPath == null)
+            return null;
+
+        var refPath = Path.Combine(latestVersionPath, "ref", "net8.0");
+        return Directory.Exists(refPath) ? refPath : null;
+
+        static Version? ParseVersion(string? value) =>
+            Version.TryParse(value, out var version) ? version : null;
+    }
+
+    private static void AddAvaloniaReferences(ICollection<MetadataReference> references, string? avaloniaRefPath)
+    {
+        if (avaloniaRefPath == null)
+            return;
+
+        var assemblies = new[]
+        {
+            "Avalonia.dll",
+            "Avalonia.Base.dll",
+            "Avalonia.Controls.dll",
+            "Avalonia.Styling.dll"
+        };
+
+        foreach (var assembly in assemblies)
+        {
+            var assemblyPath = Path.Combine(avaloniaRefPath, assembly);
+            if (File.Exists(assemblyPath))
+            {
+                references.Add(MetadataReference.CreateFromFile(assemblyPath));
+            }
         }
     }
 }

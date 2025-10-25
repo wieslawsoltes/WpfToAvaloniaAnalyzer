@@ -112,11 +112,11 @@ namespace TestNamespace
 namespace TestNamespace
 {
     public class AvaloniaObject { }
-    public class AvaloniaPropertyChangedEventArgs<T> { }
+    public class AvaloniaPropertyChangedEventArgs { }
 
     public class MyControl
     {
-        private static void OnPropertyChanged(AvaloniaObject sender, AvaloniaPropertyChangedEventArgs<int> e)
+        private static void OnPropertyChanged(AvaloniaObject sender, AvaloniaPropertyChangedEventArgs e)
         {
             // Avalonia signature
         }

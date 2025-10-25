@@ -12,32 +12,22 @@ public static class BaseClassService
     {
         var classDeclaration = root.DescendantNodes()
             .OfType<ClassDeclarationSyntax>()
-            .FirstOrDefault();
+            .FirstOrDefault(HasWpfBaseClass);
 
-        if (classDeclaration?.BaseList == null)
+        return classDeclaration == null
+            ? root
+            : UpdateWpfBaseClassToAvalonia(root, classDeclaration);
+    }
+
+    public static SyntaxNode UpdateWpfBaseClassToAvalonia(SyntaxNode root, ClassDeclarationSyntax classDeclaration)
+    {
+        if (classDeclaration.BaseList == null)
             return root;
 
         var newBaseTypes = new List<BaseTypeSyntax>();
         foreach (var baseType in classDeclaration.BaseList.Types)
         {
-            bool isWpfControl = false;
-
-            // Check for simple identifier (Control)
-            if (baseType.Type is IdentifierNameSyntax identifier && identifier.Identifier.Text == "Control")
-            {
-                isWpfControl = true;
-            }
-            // Check for fully qualified name (System.Windows.Controls.Control)
-            else if (baseType.Type is QualifiedNameSyntax qualifiedName)
-            {
-                var fullName = qualifiedName.ToString();
-                if (fullName == "System.Windows.Controls.Control")
-                {
-                    isWpfControl = true;
-                }
-            }
-
-            if (isWpfControl)
+            if (IsWpfControlBase(baseType.Type))
             {
                 // Replace with Avalonia.Controls.Control
                 var avaloniaControl = SyntaxFactory.QualifiedName(
@@ -53,6 +43,9 @@ public static class BaseClassService
             }
         }
 
+        if (!newBaseTypes.Any())
+            return root;
+
         var newBaseList = SyntaxFactory.BaseList(SyntaxFactory.SeparatedList(newBaseTypes))
             .WithColonToken(classDeclaration.BaseList.ColonToken);
 
@@ -60,16 +53,36 @@ public static class BaseClassService
         return root.ReplaceNode(classDeclaration, newClassDeclaration);
     }
 
-    public static bool HasWpfBaseClass(SyntaxNode root)
-    {
-        var classDeclaration = root.DescendantNodes()
+    public static bool HasWpfBaseClass(SyntaxNode root) =>
+        root.DescendantNodes()
             .OfType<ClassDeclarationSyntax>()
-            .FirstOrDefault();
+            .Any(HasWpfBaseClass);
 
-        if (classDeclaration?.BaseList == null)
-            return false;
+    public static bool HasWpfBaseClass(ClassDeclarationSyntax classDeclaration) =>
+        classDeclaration.BaseList != null &&
+        classDeclaration.BaseList.Types.Any(baseType => IsWpfControlBase(baseType.Type));
 
-        return classDeclaration.BaseList.Types.Any(baseType =>
-            baseType.Type is IdentifierNameSyntax identifier && identifier.Identifier.Text == "Control");
+    private static bool IsWpfControlBase(TypeSyntax typeSyntax)
+    {
+        // Check for simple identifier (Control)
+        if (typeSyntax is IdentifierNameSyntax identifier && identifier.Identifier.Text == "Control")
+        {
+            return true;
+        }
+
+        // Check for fully qualified name (System.Windows.Controls.Control)
+        if (typeSyntax is QualifiedNameSyntax qualifiedName)
+        {
+            var fullName = qualifiedName.ToString();
+            return fullName == "System.Windows.Controls.Control";
+        }
+
+        // Handle alias qualified names: global::System.Windows.Controls.Control
+        if (typeSyntax is AliasQualifiedNameSyntax aliasQualified)
+        {
+            return aliasQualified.ToString() == "global::System.Windows.Controls.Control";
+        }
+
+        return false;
     }
 }

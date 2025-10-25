@@ -20,7 +20,7 @@ namespace TestNamespace
     {
         public static readonly DependencyProperty CountProperty =
             DependencyProperty.Register(
-                nameof(Count),
+                ""Count"",
                 typeof(int),
                 typeof(MyControl),
                 {|#0:new PropertyMetadata(0, OnCountChanged)|});
@@ -36,17 +36,25 @@ namespace TestNamespace
             // Handle property changed
         }
     }
-}";
+}
+";
 
         var fixedCode = @"
 using System.Windows;
 using System.Windows.Controls;
+using Avalonia;
+using Avalonia.Controls;
 
 namespace TestNamespace
 {
     public class MyControl : Control
     {
-        public static readonly StyledProperty<int> CountProperty = AvaloniaProperty.Register<MyControl, int>(nameof(Count), 0, notify: (sender, before) => { if (!before) OnCountChanged(sender, default(DependencyPropertyChangedEventArgs)); });
+        static MyControl()
+        {
+            CountProperty.Changed.AddClassHandler<MyControl>((sender, args) => OnCountChanged(sender, args));
+        }
+
+        public static readonly StyledProperty<int> CountProperty = AvaloniaProperty.Register<MyControl, int>(""Count"", 0);
 
         public int Count
         {
@@ -54,12 +62,13 @@ namespace TestNamespace
             set => SetValue(CountProperty, value);
         }
 
-        private static void OnCountChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
+        private static void OnCountChanged(AvaloniaObject d, AvaloniaPropertyChangedEventArgs e)
         {
             // Handle property changed
         }
     }
-}";
+}
+";
 
         var expected = new DiagnosticResult(DiagnosticDescriptors.WA005_ConvertPropertyMetadata)
             .WithLocation(0);
@@ -80,7 +89,7 @@ namespace TestNamespace
     {
         public static readonly DependencyProperty ScoreProperty =
             DependencyProperty.Register(
-                nameof(Score),
+                ""Score"",
                 typeof(double),
                 typeof(MyControl),
                 {|#0:new PropertyMetadata(100.0, OnScoreChanged)|});
@@ -99,17 +108,25 @@ namespace TestNamespace
             }
         }
     }
-}";
+}
+";
 
         var fixedCode = @"
 using System.Windows;
 using System.Windows.Controls;
+using Avalonia;
+using Avalonia.Controls;
 
 namespace TestNamespace
 {
     public class MyControl : Control
     {
-        public static readonly StyledProperty<double> ScoreProperty = AvaloniaProperty.Register<MyControl, double>(nameof(Score), 100.0, notify: (sender, before) => { if (!before) OnScoreChanged(sender, default(DependencyPropertyChangedEventArgs)); });
+        static MyControl()
+        {
+            ScoreProperty.Changed.AddClassHandler<MyControl>((sender, args) => OnScoreChanged(sender, args));
+        }
+
+        public static readonly StyledProperty<double> ScoreProperty = AvaloniaProperty.Register<MyControl, double>(""Score"", 100.0);
 
         public double Score
         {
@@ -117,7 +134,7 @@ namespace TestNamespace
             set => SetValue(ScoreProperty, value);
         }
 
-        private static void OnScoreChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
+        private static void OnScoreChanged(AvaloniaObject d, AvaloniaPropertyChangedEventArgs e)
         {
             if (d is MyControl control)
             {
@@ -125,7 +142,8 @@ namespace TestNamespace
             }
         }
     }
-}";
+}
+";
 
         var expected = new DiagnosticResult(DiagnosticDescriptors.WA005_ConvertPropertyMetadata)
             .WithLocation(0);
@@ -146,7 +164,7 @@ namespace TestNamespace
     {
         public static readonly DependencyProperty NameProperty =
             DependencyProperty.Register(
-                nameof(Name),
+                ""Name"",
                 typeof(string),
                 typeof(MyControl),
                 {|#0:new PropertyMetadata(""Default"", OnNameChanged)|});
@@ -162,17 +180,25 @@ namespace TestNamespace
             // Handle name changed
         }
     }
-}";
+}
+";
 
         var fixedCode = @"
 using System.Windows;
 using System.Windows.Controls;
+using Avalonia;
+using Avalonia.Controls;
 
 namespace TestNamespace
 {
     public class MyControl : Control
     {
-        public static readonly StyledProperty<string> NameProperty = AvaloniaProperty.Register<MyControl, string>(nameof(Name), ""Default"", notify: (sender, before) => { if (!before) OnNameChanged(sender, default(DependencyPropertyChangedEventArgs)); });
+        static MyControl()
+        {
+            NameProperty.Changed.AddClassHandler<MyControl>((sender, args) => OnNameChanged(sender, args));
+        }
+
+        public static readonly StyledProperty<string> NameProperty = AvaloniaProperty.Register<MyControl, string>(""Name"", ""Default"");
 
         public string Name
         {
@@ -180,12 +206,13 @@ namespace TestNamespace
             set => SetValue(NameProperty, value);
         }
 
-        private static void OnNameChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
+        private static void OnNameChanged(AvaloniaObject d, AvaloniaPropertyChangedEventArgs e)
         {
             // Handle name changed
         }
     }
-}";
+}
+";
 
         var expected = new DiagnosticResult(DiagnosticDescriptors.WA005_ConvertPropertyMetadata)
             .WithLocation(0);

@@ -31,7 +31,7 @@ namespace TestNamespace
 {
     public class MyControl
     {
-        private static void OnPropertyChanged(AvaloniaObject d, AvaloniaPropertyChangedEventArgs<object> e)
+        private static void OnPropertyChanged(AvaloniaObject d, AvaloniaPropertyChangedEventArgs e)
         {
             // Handle property changed - no type inference available
         }
@@ -75,7 +75,7 @@ namespace TestNamespace
 {
     public class MyControl : Control
     {
-        private static void OnCountChanged(AvaloniaObject d, AvaloniaPropertyChangedEventArgs<int> e)
+        private static void OnCountChanged(AvaloniaObject d, AvaloniaPropertyChangedEventArgs e)
         {
             if (d is MyControl control)
             {
@@ -117,7 +117,7 @@ namespace TestNamespace
 {
     public class MyControl
     {
-        private static void OnNameChanged(AvaloniaObject d, AvaloniaPropertyChangedEventArgs<string> e)
+        private static void OnNameChanged(AvaloniaObject d, AvaloniaPropertyChangedEventArgs e)
         {
             var name = (string)e.NewValue;
         }
@@ -155,7 +155,7 @@ namespace TestNamespace
 {
     public class MyControl
     {
-        private static void OnScoreChanged(AvaloniaObject d, AvaloniaPropertyChangedEventArgs<double> e)
+        private static void OnScoreChanged(AvaloniaObject d, AvaloniaPropertyChangedEventArgs e)
         {
             var score = (double)e.OldValue;
         }

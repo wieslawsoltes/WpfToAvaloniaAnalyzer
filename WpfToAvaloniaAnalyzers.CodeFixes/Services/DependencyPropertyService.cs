@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Linq;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
@@ -45,7 +46,7 @@ public static class DependencyPropertyService
         // Extract default value and property changed callback from PropertyMetadata if present (4th argument)
         ExpressionSyntax? defaultValue = null;
         ExpressionSyntax? propertyChangedCallback = null;
-
+        bool hasPropertyMetadata = false;
         if (arguments.Count >= 4)
         {
             var metadataArg = arguments[3].Expression;
@@ -53,6 +54,7 @@ public static class DependencyPropertyService
             if (metadataArg is ObjectCreationExpressionSyntax objectCreation &&
                 objectCreation.ArgumentList?.Arguments.Count > 0)
             {
+                hasPropertyMetadata = true;
                 defaultValue = objectCreation.ArgumentList.Arguments[0].Expression;
 
                 // Check for property changed callback (2nd argument in PropertyMetadata)
@@ -106,16 +108,6 @@ public static class DependencyPropertyService
                 registerArgs.Add(SyntaxFactory.Argument(defaultExpr));
             }
 
-            // Add notify parameter if there's a property changed callback
-            // In Avalonia: AvaloniaProperty.Register<TOwner, TValue>(name, defaultValue, notify: OnPropertyChanged)
-            if (propertyChangedCallback != null)
-            {
-                registerArgs.Add(SyntaxFactory.Argument(
-                    SyntaxFactory.NameColon("notify"),
-                    SyntaxFactory.Token(SyntaxKind.None),
-                    ConvertWpfCallbackToAvaloniaNotify(propertyChangedCallback)));
-            }
-
             registerCall = SyntaxFactory.InvocationExpression(
                 SyntaxFactory.MemberAccessExpression(
                     SyntaxKind.SimpleMemberAccessExpression,
@@ -153,46 +145,30 @@ public static class DependencyPropertyService
             .WithDeclaration(newVariableDeclaration);
 
         // Replace the field declaration
-        return root.ReplaceNode(fieldDeclaration, newFieldDeclaration);
-    }
+        var updatedRoot = root.ReplaceNode(fieldDeclaration, newFieldDeclaration);
 
-    private static ExpressionSyntax ConvertWpfCallbackToAvaloniaNotify(ExpressionSyntax wpfCallback)
-    {
-        // WPF signature: static void OnPropertyChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
-        // Avalonia signature: static void OnPropertyChanged(AvaloniaObject sender, bool before)
-        // For now, we'll create a lambda that adapts the call:
-        // notify: (sender, before) => { if (!before) OnPropertyChanged(sender, default); }
+        if (!hasPropertyMetadata || propertyChangedCallback == null)
+            return updatedRoot;
 
-        if (wpfCallback is IdentifierNameSyntax callbackName)
-        {
-            // Create: (sender, before) => { if (!before) CallbackName(sender, default); }
-            var lambda = SyntaxFactory.ParenthesizedLambdaExpression(
-                SyntaxFactory.ParameterList(
-                    SyntaxFactory.SeparatedList(new[]
-                    {
-                        SyntaxFactory.Parameter(SyntaxFactory.Identifier("sender")),
-                        SyntaxFactory.Parameter(SyntaxFactory.Identifier("before"))
-                    })),
-                SyntaxFactory.Block(
-                    SyntaxFactory.IfStatement(
-                        SyntaxFactory.PrefixUnaryExpression(
-                            SyntaxKind.LogicalNotExpression,
-                            SyntaxFactory.IdentifierName("before")),
-                        SyntaxFactory.ExpressionStatement(
-                            SyntaxFactory.InvocationExpression(
-                                callbackName,
-                                SyntaxFactory.ArgumentList(
-                                    SyntaxFactory.SeparatedList(new[]
-                                    {
-                                        SyntaxFactory.Argument(SyntaxFactory.IdentifierName("sender")),
-                                        SyntaxFactory.Argument(SyntaxFactory.DefaultExpression(
-                                            SyntaxFactory.IdentifierName("DependencyPropertyChangedEventArgs")))
-                                    })))))));
+        var containingClass = fieldDeclaration.Parent as ClassDeclarationSyntax;
+        if (containingClass == null)
+            return updatedRoot;
 
-            return lambda;
-        }
+        var updatedClass = updatedRoot.DescendantNodes()
+            .OfType<ClassDeclarationSyntax>()
+            .FirstOrDefault(cd => cd.Identifier.Text == containingClass.Identifier.Text);
 
-        // For lambda callbacks or other complex cases, just return the original for now
-        return wpfCallback;
+        if (updatedClass == null)
+            return updatedRoot;
+
+        var ownerTypeSyntax = ownerType ?? SyntaxFactory.IdentifierName(updatedClass.Identifier);
+
+        return ClassHandlerService.AddClassHandler(
+            updatedRoot,
+            updatedClass,
+            fieldVariable.Identifier.Text,
+            propertyChangedCallback,
+            ownerTypeSyntax,
+            propertyType);
     }
 }
