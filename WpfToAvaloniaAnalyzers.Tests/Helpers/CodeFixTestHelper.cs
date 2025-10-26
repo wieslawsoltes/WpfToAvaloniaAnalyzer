@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Threading;
 using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Testing;
 using Microsoft.CodeAnalysis.Diagnostics;
 using Microsoft.CodeAnalysis.Testing;
@@ -18,7 +19,13 @@ public static class CodeFixTestHelper
         await VerifyCodeFixAsync<DependencyPropertyAnalyzer, DependencyPropertyCodeFixProvider>(source, expected, fixedSource, compilerDiagnostics);
     }
 
-    public static async Task VerifyCodeFixAsync<TAnalyzer, TCodeFix>(string source, DiagnosticResult expected, string fixedSource, CompilerDiagnostics compilerDiagnostics = CompilerDiagnostics.Errors, bool relaxDiagnostics = false)
+    public static async Task VerifyCodeFixAsync<TAnalyzer, TCodeFix>(
+        string source,
+        DiagnosticResult expected,
+        string fixedSource,
+        CompilerDiagnostics compilerDiagnostics = CompilerDiagnostics.Errors,
+        bool relaxDiagnostics = false,
+        CSharpParseOptions? parseOptions = null)
         where TAnalyzer : DiagnosticAnalyzer, new()
         where TCodeFix : Microsoft.CodeAnalysis.CodeFixes.CodeFixProvider, new()
     {
@@ -29,6 +36,17 @@ public static class CodeFixTestHelper
             ReferenceAssemblies = ReferenceAssemblies.Net.Net80,
             TestBehaviors = TestBehaviors.SkipGeneratedCodeCheck
         };
+
+        if (parseOptions != null)
+        {
+            test.SolutionTransforms.Add((solution, projectId) =>
+            {
+                var project = solution.GetProject(projectId);
+                return project == null
+                    ? solution
+                    : solution.WithProjectParseOptions(projectId, parseOptions);
+            });
+        }
 
         // Add WPF assemblies from NuGet package
         var nugetPackagesPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".nuget", "packages");

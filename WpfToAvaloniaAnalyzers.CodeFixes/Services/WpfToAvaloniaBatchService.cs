@@ -115,8 +115,13 @@ public static class WpfToAvaloniaBatchService
                 var next = ApplyStep(step, current, semanticModel);
                 if (!ReferenceEquals(next, current))
                 {
-                    semanticModel = RefreshSemanticModel(semanticModel, current, next);
+                    var previous = current;
                     current = next;
+                    semanticModel = RefreshSemanticModel(semanticModel, previous, current);
+                    if (semanticModel != null)
+                    {
+                        current = semanticModel.SyntaxTree.GetRoot();
+                    }
                     changed = true;
                 }
             }
@@ -150,10 +155,19 @@ public static class WpfToAvaloniaBatchService
             return null;
 
         var oldTree = semanticModel.SyntaxTree;
-        var newTree = updatedRoot.SyntaxTree;
-
-        if (oldTree == newTree)
+        var currentTree = updatedRoot.SyntaxTree;
+        if (oldTree == currentTree)
             return semanticModel;
+
+        SyntaxTree newTree;
+        if (oldTree is CSharpSyntaxTree && updatedRoot is CSharpSyntaxNode csharpRoot && oldTree.Options is CSharpParseOptions csharpOptions)
+        {
+            newTree = CSharpSyntaxTree.Create(csharpRoot, csharpOptions, oldTree.FilePath, oldTree.Encoding);
+        }
+        else
+        {
+            newTree = oldTree.WithRootAndOptions(updatedRoot, oldTree.Options);
+        }
 
         var compilation = semanticModel.Compilation;
         var newCompilation = compilation.ReplaceSyntaxTree(oldTree, newTree);
