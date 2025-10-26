@@ -14,10 +14,12 @@ namespace WpfToAvaloniaAnalyzers.CodeFixes;
 [ExportCodeFixProvider(LanguageNames.CSharp, Name = nameof(PropertyMetadataCodeFixProvider)), Shared]
 public class PropertyMetadataCodeFixProvider : CodeFixProvider
 {
-    private const string Title = "Convert PropertyMetadata to Avalonia property with callback";
+    private const string Title = "Convert property metadata to Avalonia property";
 
     public sealed override ImmutableArray<string> FixableDiagnosticIds =>
-        ImmutableArray.Create(DiagnosticDescriptors.WA005_ConvertPropertyMetadata.Id);
+        ImmutableArray.Create(
+            DiagnosticDescriptors.WA005_ConvertPropertyMetadata.Id,
+            DiagnosticDescriptors.WA013_TranslateFrameworkPropertyMetadata.Id);
 
     public sealed override FixAllProvider GetFixAllProvider() =>
         WellKnownFixAllProviders.BatchFixer;

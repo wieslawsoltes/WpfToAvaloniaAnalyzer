@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
@@ -24,23 +25,176 @@ public static class WpfToAvaloniaBatchService
             : document.WithSyntaxRoot(updatedRoot);
     }
 
+    private static readonly FixStep RemoveTelemetryStep = new(
+        "RemoveTelemetryInstrumentation",
+        requiresSemanticModel: false,
+        apply: (root, model) => TelemetryInstrumentationService.RemoveTelemetryInstrumentation(root, model));
+
+    private static readonly FixStep RemoveCommonDependencyPropertyStep = new(
+        "RemoveCommonDependencyPropertyAttribute",
+        requiresSemanticModel: false,
+        apply: (root, model) => CommonDependencyPropertyAttributeService.RemoveCommonDependencyPropertyAttributes(root, model));
+
+    private static readonly FixStep ConvertDependencyPropertiesStep = new(
+        "ConvertDependencyProperties",
+        requiresSemanticModel: true,
+        apply: (root, model) => ConvertDependencyProperties(root, model!));
+
+    private static readonly FixStep ConvertFrameworkMetadataStep = new(
+        "ConvertFrameworkPropertyMetadata",
+        requiresSemanticModel: true,
+        apply: (root, model) => ConvertFrameworkPropertyMetadata(root, model!));
+
+    private static readonly FixStep ConvertPropertyChangedCallbacksStep = new(
+        "ConvertPropertyChangedCallbacks",
+        requiresSemanticModel: true,
+        apply: (root, model) => ConvertPropertyChangedCallbacks(root, model!));
+
+    private static readonly FixStep RemoveEffectiveValuesInitialSizeStep = new(
+        "RemoveEffectiveValuesInitialSizeOverrides",
+        requiresSemanticModel: false,
+        apply: (root, model) => RemoveEffectiveValuesInitialSizeOverrides(root, model));
+
+    private static readonly FixStep RemoveGetValueCastsStep = new(
+        "RemoveGetValueCasts",
+        requiresSemanticModel: false,
+        apply: (root, model) => RemoveGetValueCasts(root));
+
+    private static readonly FixStep UpdateBaseClassesStep = new(
+        "UpdateBaseClasses",
+        requiresSemanticModel: false,
+        apply: (root, model) => UpdateBaseClasses(root));
+
+    private static readonly FixStep UpdateUsingsStep = new(
+        "UpdateUsings",
+        requiresSemanticModel: false,
+        apply: (root, model) => UpdateUsings(root));
+
+    private static readonly FixPass[] FixPasses = new[]
+    {
+        new FixPass(
+            "PreProcessing",
+            new[] { RemoveTelemetryStep, RemoveCommonDependencyPropertyStep },
+            maxIterations: 3),
+        new FixPass(
+            "CoreConversions",
+            new[] { ConvertFrameworkMetadataStep, ConvertDependencyPropertiesStep, ConvertPropertyChangedCallbacksStep, RemoveEffectiveValuesInitialSizeStep },
+            maxIterations: 3),
+        new FixPass(
+            "FinalPolish",
+            new[] { RemoveGetValueCastsStep, UpdateBaseClassesStep, UpdateUsingsStep },
+            maxIterations: 2)
+    };
+
     private static SyntaxNode ApplyAllFixes(SyntaxNode root, SemanticModel? semanticModel)
     {
         var currentRoot = root;
+        var currentSemanticModel = semanticModel;
 
-        if (semanticModel != null)
+        foreach (var pass in FixPasses)
         {
-            currentRoot = ConvertDependencyProperties(currentRoot, semanticModel);
-            currentRoot = ConvertPropertyChangedCallbacks(currentRoot, semanticModel);
+            currentRoot = RunPass(pass, currentRoot, ref currentSemanticModel);
         }
 
-        currentRoot = RemoveGetValueCasts(currentRoot);
-        currentRoot = UpdateBaseClasses(currentRoot);
-        currentRoot = TelemetryInstrumentationService.RemoveTelemetryInstrumentation(currentRoot, semanticModel);
-        currentRoot = CommonDependencyPropertyAttributeService.RemoveCommonDependencyPropertyAttributes(currentRoot, semanticModel);
-        currentRoot = UpdateUsings(currentRoot);
-
         return currentRoot;
+    }
+
+    private static SyntaxNode RunPass(FixPass pass, SyntaxNode root, ref SemanticModel? semanticModel)
+    {
+        var current = root;
+
+        for (var iteration = 0; iteration < pass.MaxIterations; iteration++)
+        {
+            var changed = false;
+
+            foreach (var step in pass.Steps)
+            {
+                if (step.RequiresSemanticModel && semanticModel == null)
+                    continue;
+
+                var next = ApplyStep(step, current, semanticModel);
+                if (!ReferenceEquals(next, current))
+                {
+                    semanticModel = RefreshSemanticModel(semanticModel, current, next);
+                    current = next;
+                    changed = true;
+                }
+            }
+
+            if (!changed)
+                break;
+        }
+
+        return current;
+    }
+
+    private static SyntaxNode ApplyStep(FixStep step, SyntaxNode root, SemanticModel? semanticModel)
+    {
+        var current = root;
+
+        for (var iteration = 0; iteration < step.MaxIterations; iteration++)
+        {
+            var next = step.Apply(current, step.RequiresSemanticModel ? semanticModel! : null);
+            if (ReferenceEquals(next, current))
+                break;
+
+            current = next;
+        }
+
+        return current;
+    }
+
+    private static SemanticModel? RefreshSemanticModel(SemanticModel? semanticModel, SyntaxNode previousRoot, SyntaxNode updatedRoot)
+    {
+        if (semanticModel == null)
+            return null;
+
+        var oldTree = semanticModel.SyntaxTree;
+        var newTree = updatedRoot.SyntaxTree;
+
+        if (oldTree == newTree)
+            return semanticModel;
+
+        var compilation = semanticModel.Compilation;
+        var newCompilation = compilation.ReplaceSyntaxTree(oldTree, newTree);
+        return newCompilation.GetSemanticModel(newTree);
+    }
+
+    private sealed class FixStep
+    {
+        public FixStep(
+            string name,
+            bool requiresSemanticModel,
+            Func<SyntaxNode, SemanticModel?, SyntaxNode> apply,
+            int maxIterations = 1)
+        {
+            Name = name;
+            RequiresSemanticModel = requiresSemanticModel;
+            Apply = apply;
+            MaxIterations = maxIterations;
+        }
+
+        public string Name { get; }
+        public bool RequiresSemanticModel { get; }
+        public Func<SyntaxNode, SemanticModel?, SyntaxNode> Apply { get; }
+        public int MaxIterations { get; }
+    }
+
+    private sealed class FixPass
+    {
+        public FixPass(
+            string name,
+            FixStep[] steps,
+            int maxIterations = 1)
+        {
+            Name = name;
+            Steps = steps;
+            MaxIterations = maxIterations;
+        }
+
+        public string Name { get; }
+        public FixStep[] Steps { get; }
+        public int MaxIterations { get; }
     }
 
     private static SyntaxNode ConvertDependencyProperties(SyntaxNode root, SemanticModel semanticModel)
@@ -48,6 +202,30 @@ public static class WpfToAvaloniaBatchService
         var variables = root.DescendantNodes()
             .OfType<VariableDeclaratorSyntax>()
             .Where(variable => ShouldConvertDependencyProperty(variable, semanticModel))
+            .ToList();
+
+        if (variables.Count == 0)
+            return root;
+
+        var currentRoot = root.TrackNodes(variables);
+
+        foreach (var variable in variables)
+        {
+            var currentVariable = currentRoot.GetCurrentNode(variable);
+            if (currentVariable == null)
+                continue;
+
+            currentRoot = DependencyPropertyService.ConvertDependencyPropertyToStyledProperty(currentRoot, currentVariable, semanticModel);
+        }
+
+        return currentRoot;
+    }
+
+    private static SyntaxNode ConvertFrameworkPropertyMetadata(SyntaxNode root, SemanticModel semanticModel)
+    {
+        var variables = root.DescendantNodes()
+            .OfType<VariableDeclaratorSyntax>()
+            .Where(variable => ShouldConvertFrameworkMetadata(variable, semanticModel))
             .ToList();
 
         if (variables.Count == 0)
@@ -92,6 +270,55 @@ public static class WpfToAvaloniaBatchService
         }
 
         return currentRoot;
+    }
+
+    private static bool ShouldConvertFrameworkMetadata(VariableDeclaratorSyntax variable, SemanticModel semanticModel)
+    {
+        if (!ShouldConvertDependencyProperty(variable, semanticModel))
+            return false;
+
+        if (variable.Initializer?.Value is not InvocationExpressionSyntax invocation ||
+            invocation.ArgumentList.Arguments.Count < 4)
+        {
+            return false;
+        }
+
+        var metadataExpression = invocation.ArgumentList.Arguments[3].Expression;
+        var typeInfo = semanticModel.GetTypeInfo(metadataExpression);
+        return typeInfo.Type?.Name == "FrameworkPropertyMetadata" &&
+               typeInfo.Type.ContainingNamespace?.ToDisplayString() == "System.Windows";
+    }
+
+    private static SyntaxNode RemoveEffectiveValuesInitialSizeOverrides(SyntaxNode root, SemanticModel? semanticModel)
+    {
+        var properties = root.DescendantNodes()
+            .OfType<PropertyDeclarationSyntax>()
+            .Where(static property =>
+                property.Identifier.Text == "EffectiveValuesInitialSize" &&
+                property.Modifiers.Any(SyntaxKind.OverrideKeyword))
+            .ToList();
+
+        if (properties.Count == 0)
+            return root;
+
+        var candidates = new List<PropertyDeclarationSyntax>();
+
+        foreach (var property in properties)
+        {
+            if (semanticModel != null && semanticModel.SyntaxTree == property.SyntaxTree)
+            {
+                var symbol = semanticModel.GetDeclaredSymbol(property);
+                if (symbol?.IsOverride != true)
+                    continue;
+            }
+
+            candidates.Add(property);
+        }
+
+        if (candidates.Count == 0)
+            return root;
+
+        return root.RemoveNodes(candidates, SyntaxRemoveOptions.KeepNoTrivia) ?? root;
     }
 
     private static SyntaxNode RemoveGetValueCasts(SyntaxNode root)

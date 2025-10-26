@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
 using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 
 namespace WpfToAvaloniaAnalyzers.CodeFixes.Services;
@@ -24,15 +25,15 @@ internal static class TelemetryInstrumentationService
         if (semanticModel != null && semanticModel.SyntaxTree == invocation.SyntaxTree)
         {
             var symbol = semanticModel.GetSymbolInfo(invocation).Symbol as IMethodSymbol;
-            if (symbol == null)
-                return false;
-
-            return string.Equals(symbol.Name, "AddControl", StringComparison.Ordinal) &&
-                   string.Equals(symbol.ContainingType?.Name, "ControlsTraceLogger", StringComparison.Ordinal) &&
-                   string.Equals(
-                       symbol.ContainingNamespace?.ToDisplayString(),
-                       "MS.Internal.Telemetry.PresentationFramework",
-                       StringComparison.Ordinal);
+            if (symbol != null)
+            {
+                return string.Equals(symbol.Name, "AddControl", StringComparison.Ordinal) &&
+                       string.Equals(symbol.ContainingType?.Name, "ControlsTraceLogger", StringComparison.Ordinal) &&
+                       string.Equals(
+                           symbol.ContainingNamespace?.ToDisplayString(),
+                           "MS.Internal.Telemetry.PresentationFramework",
+                           StringComparison.Ordinal);
+            }
         }
 
         if (invocation.Expression is not MemberAccessExpressionSyntax memberAccess)
@@ -67,49 +68,43 @@ internal static class TelemetryInstrumentationService
 
     public static SyntaxNode RemoveTelemetryInstrumentation(SyntaxNode root, SemanticModel? semanticModel)
     {
-        var telemetryUsings = root.DescendantNodes()
-            .OfType<UsingDirectiveSyntax>()
-            .Where(IsTelemetryUsing)
-            .ToList();
+        var currentRoot = root;
 
-        var telemetryStatements = root.DescendantNodes()
+        var telemetryStatements = currentRoot.DescendantNodes()
             .OfType<ExpressionStatementSyntax>()
             .Where(statement => statement.Expression is InvocationExpressionSyntax invocation &&
                                 IsTelemetryInvocation(invocation, semanticModel))
             .ToList();
 
-        if (telemetryUsings.Count == 0 && telemetryStatements.Count == 0)
-            return root;
+        if (telemetryStatements.Count > 0)
+        {
+            currentRoot = currentRoot.RemoveNodes(telemetryStatements, SyntaxRemoveOptions.KeepNoTrivia)!;
+        }
 
-        var statementSet = new HashSet<StatementSyntax>(telemetryStatements);
-
-        var constructorsToRemove = telemetryStatements
-            .Select(statement => statement.FirstAncestorOrSelf<ConstructorDeclarationSyntax>())
+        var emptyStaticConstructors = currentRoot.DescendantNodes()
             .OfType<ConstructorDeclarationSyntax>()
             .Where(constructor =>
-                constructor.Body != null &&
-                constructor.Body.Statements.All(statement => statementSet.Contains(statement)))
-            .Distinct()
+                constructor.Modifiers.Any(SyntaxKind.StaticKeyword) &&
+                constructor.ExpressionBody == null &&
+                constructor.Initializer == null &&
+                (constructor.Body == null || !constructor.Body.Statements.Any()))
             .ToList();
 
-        var constructorsSet = new HashSet<SyntaxNode>(constructorsToRemove);
+        if (emptyStaticConstructors.Count > 0)
+        {
+            currentRoot = currentRoot.RemoveNodes(emptyStaticConstructors, SyntaxRemoveOptions.KeepNoTrivia)!;
+        }
 
-        var statementsToRemove = telemetryStatements
-            .Where(statement =>
-            {
-                var constructor = statement.FirstAncestorOrSelf<ConstructorDeclarationSyntax>();
-                return constructor == null || !constructorsSet.Contains(constructor);
-            })
-            .Cast<SyntaxNode>()
+        var telemetryUsings = currentRoot.DescendantNodes()
+            .OfType<UsingDirectiveSyntax>()
+            .Where(IsTelemetryUsing)
             .ToList();
 
-        var nodesToRemove = new List<SyntaxNode>();
-        nodesToRemove.AddRange(constructorsToRemove);
-        nodesToRemove.AddRange(statementsToRemove);
-        nodesToRemove.AddRange(telemetryUsings);
+        if (telemetryUsings.Count > 0)
+        {
+            currentRoot = currentRoot.RemoveNodes(telemetryUsings, SyntaxRemoveOptions.KeepNoTrivia)!;
+        }
 
-        return nodesToRemove.Count == 0
-            ? root
-            : root.RemoveNodes(nodesToRemove, SyntaxRemoveOptions.KeepNoTrivia)!;
+        return currentRoot;
     }
 }

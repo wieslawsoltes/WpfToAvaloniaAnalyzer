@@ -48,6 +48,25 @@ public static class UsingDirectivesService
         return compilationUnit.WithUsings(SyntaxFactory.List(usings));
     }
 
+    public static CompilationUnitSyntax AddAvaloniaDataUsing(CompilationUnitSyntax compilationUnit)
+    {
+        var hasAvaloniaDataUsing = compilationUnit.Usings
+            .Any(u => u.Name?.ToString() == "Avalonia.Data");
+
+        if (hasAvaloniaDataUsing)
+            return compilationUnit;
+
+        var avaloniaDataUsing = SyntaxFactory.UsingDirective(
+                SyntaxFactory.QualifiedName(
+                    SyntaxFactory.IdentifierName("Avalonia"),
+                    SyntaxFactory.IdentifierName("Data")))
+            .WithUsingKeyword(SyntaxFactory.Token(SyntaxKind.UsingKeyword).WithTrailingTrivia(SyntaxFactory.Space))
+            .WithSemicolonToken(SyntaxFactory.Token(SyntaxKind.SemicolonToken).WithTrailingTrivia(SyntaxFactory.LineFeed));
+
+        var updatedUsings = compilationUnit.Usings.Add(avaloniaDataUsing);
+        return compilationUnit.WithUsings(updatedUsings);
+    }
+
     public static bool HasWpfUsings(CompilationUnitSyntax compilationUnit)
     {
         return compilationUnit.Usings.Any(u =>

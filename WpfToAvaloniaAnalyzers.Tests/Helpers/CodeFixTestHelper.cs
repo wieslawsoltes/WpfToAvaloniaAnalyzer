@@ -18,7 +18,7 @@ public static class CodeFixTestHelper
         await VerifyCodeFixAsync<DependencyPropertyAnalyzer, DependencyPropertyCodeFixProvider>(source, expected, fixedSource, compilerDiagnostics);
     }
 
-    public static async Task VerifyCodeFixAsync<TAnalyzer, TCodeFix>(string source, DiagnosticResult expected, string fixedSource, CompilerDiagnostics compilerDiagnostics = CompilerDiagnostics.Errors)
+    public static async Task VerifyCodeFixAsync<TAnalyzer, TCodeFix>(string source, DiagnosticResult expected, string fixedSource, CompilerDiagnostics compilerDiagnostics = CompilerDiagnostics.Errors, bool relaxDiagnostics = false)
         where TAnalyzer : DiagnosticAnalyzer, new()
         where TCodeFix : Microsoft.CodeAnalysis.CodeFixes.CodeFixProvider, new()
     {
@@ -49,7 +49,7 @@ public static class CodeFixTestHelper
         }
         AddAvaloniaReferences(test.FixedState.AdditionalReferences, avaloniaRefPath);
 
-        test.CompilerDiagnostics = compilerDiagnostics;
+        test.CompilerDiagnostics = relaxDiagnostics ? CompilerDiagnostics.None : compilerDiagnostics;
 
         test.ExpectedDiagnostics.Add(expected);
         await test.RunAsync();
@@ -58,7 +58,10 @@ public static class CodeFixTestHelper
     public static Task VerifyCodeFixAsync(string source, string fixedSource, params DiagnosticResult[] expected) =>
         VerifyCodeFixAsync(source, fixedSource, CompilerDiagnostics.Errors, expected);
 
-    public static async Task VerifyCodeFixAsync(string source, string fixedSource, CompilerDiagnostics compilerDiagnostics, params DiagnosticResult[] expected)
+    public static Task VerifyCodeFixAsync(string source, string fixedSource, CompilerDiagnostics compilerDiagnostics, params DiagnosticResult[] expected) =>
+        VerifyCodeFixAsync(source, fixedSource, compilerDiagnostics, relaxDiagnostics: false, expected);
+
+    public static async Task VerifyCodeFixAsync(string source, string fixedSource, CompilerDiagnostics compilerDiagnostics, bool relaxDiagnostics, params DiagnosticResult[] expected)
     {
         var test = new CSharpCodeFixTest<
             DependencyPropertyAnalyzer,
@@ -90,7 +93,7 @@ public static class CodeFixTestHelper
         }
         AddAvaloniaReferences(test.FixedState.AdditionalReferences, avaloniaRefPath);
 
-        test.CompilerDiagnostics = compilerDiagnostics;
+        test.CompilerDiagnostics = relaxDiagnostics ? CompilerDiagnostics.None : compilerDiagnostics;
 
         test.ExpectedDiagnostics.AddRange(expected);
         await test.RunAsync();

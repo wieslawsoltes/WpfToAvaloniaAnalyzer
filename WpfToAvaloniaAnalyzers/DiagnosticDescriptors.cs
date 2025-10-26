@@ -97,6 +97,24 @@ public static class DiagnosticDescriptors
         isEnabledByDefault: true,
         description: "Attached DependencyProperty declarations should be converted to AvaloniaProperty.RegisterAttached for Avalonia compatibility.");
 
+    public static readonly DiagnosticDescriptor WA013_TranslateFrameworkPropertyMetadata = new(
+        id: "WA013",
+        title: "Translate FrameworkPropertyMetadata to Avalonia metadata",
+        messageFormat: "FrameworkPropertyMetadata should be converted to Avalonia property metadata",
+        category: Category,
+        defaultSeverity: DiagnosticSeverity.Warning,
+        isEnabledByDefault: true,
+        description: "FrameworkPropertyMetadata default values, callbacks, and layout flags should be translated to Avalonia property metadata patterns.");
+
+    public static readonly DiagnosticDescriptor WA014_RemoveEffectiveValuesInitialSize = new(
+        id: "WA014",
+        title: "Remove EffectiveValuesInitialSize overrides",
+        messageFormat: "Override '{0}' should be removed when migrating to Avalonia",
+        category: Category,
+        defaultSeverity: DiagnosticSeverity.Info,
+        isEnabledByDefault: true,
+        description: "EffectiveValuesInitialSize overrides are WPF-specific property system optimizations and should be removed in Avalonia.");
+
     public static readonly DiagnosticDescriptor WA007_ApplyAllAnalyzers = new(
         id: "WA007",
         title: "Apply all WPF to Avalonia conversions",

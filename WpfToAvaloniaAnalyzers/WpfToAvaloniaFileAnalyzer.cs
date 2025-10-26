@@ -46,6 +46,14 @@ public sealed class WpfToAvaloniaFileAnalyzer : DiagnosticAnalyzer
     {
         foreach (var usingDirective in root.DescendantNodes().OfType<UsingDirectiveSyntax>())
         {
+            if (IsTelemetryUsing(usingDirective))
+            {
+                return usingDirective.GetLocation();
+            }
+        }
+
+        foreach (var usingDirective in root.DescendantNodes().OfType<UsingDirectiveSyntax>())
+        {
             var name = usingDirective.Name?.ToString();
             if (name == "System.Windows" || name == "System.Windows.Controls")
             {
@@ -70,6 +78,12 @@ public sealed class WpfToAvaloniaFileAnalyzer : DiagnosticAnalyzer
 
         foreach (var classDeclaration in root.DescendantNodes().OfType<ClassDeclarationSyntax>())
         {
+            var telemetryLocation = GetTelemetryInstrumentationLocation(classDeclaration);
+            if (telemetryLocation != null)
+            {
+                return telemetryLocation;
+            }
+
             var location = GetWpfBaseClassLocation(classDeclaration, semanticModel, cancellationToken);
             if (location != null)
             {
@@ -93,7 +107,68 @@ public sealed class WpfToAvaloniaFileAnalyzer : DiagnosticAnalyzer
             }
         }
 
+        foreach (var attribute in root.DescendantNodes().OfType<AttributeSyntax>())
+        {
+            if (IsCommonDependencyPropertyAttribute(attribute))
+            {
+                return attribute.GetLocation();
+            }
+        }
+
         return null;
+    }
+
+    private static bool IsTelemetryUsing(UsingDirectiveSyntax usingDirective)
+    {
+        var name = usingDirective.Name?.ToString();
+        return name == "MS.Internal.PresentationFramework" ||
+               name == "MS.Internal.Telemetry.PresentationFramework";
+    }
+
+    private static Location? GetTelemetryInstrumentationLocation(ClassDeclarationSyntax classDeclaration)
+    {
+        var constructor = classDeclaration.Members
+            .OfType<ConstructorDeclarationSyntax>()
+            .FirstOrDefault(ctor => ctor.Modifiers.Any(SyntaxKind.StaticKeyword));
+
+        if (constructor == null)
+            return null;
+
+        var telemetryInvocation = constructor.DescendantNodes()
+            .OfType<InvocationExpressionSyntax>()
+            .FirstOrDefault(IsTelemetryInvocation);
+
+        return telemetryInvocation?.GetLocation();
+    }
+
+    private static bool IsTelemetryInvocation(InvocationExpressionSyntax invocation)
+    {
+        if (invocation.Expression is not MemberAccessExpressionSyntax memberAccess)
+            return false;
+
+        if (!string.Equals(memberAccess.Name.Identifier.Text, "AddControl", StringComparison.Ordinal))
+            return false;
+
+        return memberAccess.Expression switch
+        {
+            IdentifierNameSyntax identifier => string.Equals(identifier.Identifier.Text, "ControlsTraceLogger", StringComparison.Ordinal),
+            MemberAccessExpressionSyntax nested => string.Equals(nested.Name.Identifier.Text, "ControlsTraceLogger", StringComparison.Ordinal) ||
+                                                   nested.ToString().EndsWith(".ControlsTraceLogger", StringComparison.Ordinal),
+            _ => false
+        };
+    }
+
+    private static bool IsCommonDependencyPropertyAttribute(AttributeSyntax attribute)
+    {
+        var nameText = attribute.Name switch
+        {
+            IdentifierNameSyntax identifier => identifier.Identifier.Text,
+            QualifiedNameSyntax qualified => qualified.Right.Identifier.Text,
+            _ => attribute.Name.ToString()
+        };
+
+        return string.Equals(nameText, "CommonDependencyProperty", StringComparison.Ordinal) ||
+               string.Equals(nameText, "CommonDependencyPropertyAttribute", StringComparison.Ordinal);
     }
 
     private static Location? GetDependencyPropertyIssueLocation(
