@@ -31,10 +31,10 @@ public class DependencyPropertyCodeFixProvider : CodeFixProvider
         var diagnostic = context.Diagnostics.First();
         var diagnosticSpan = diagnostic.Location.SourceSpan;
 
+        var node = root.FindNode(diagnosticSpan, getInnermostNodeForTie: true);
+
         // Find the field declaration
-        var fieldVariable = root.FindToken(diagnosticSpan.Start).Parent?.AncestorsAndSelf()
-            .OfType<VariableDeclaratorSyntax>()
-            .First();
+        var fieldVariable = node?.FirstAncestorOrSelf<VariableDeclaratorSyntax>();
 
         if (fieldVariable == null)
             return;
