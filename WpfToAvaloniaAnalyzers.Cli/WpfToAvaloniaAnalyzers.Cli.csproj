@@ -17,6 +17,7 @@
   <ItemGroup>
     <ProjectReference Include="..\WpfToAvaloniaAnalyzers\WpfToAvaloniaAnalyzers.csproj" />
     <ProjectReference Include="..\WpfToAvaloniaAnalyzers.CodeFixes\WpfToAvaloniaAnalyzers.CodeFixes.csproj" />
+    <ProjectReference Include="..\WpfToAvaloniaAnalyzers.MSBuild\WpfToAvaloniaAnalyzers.MSBuild.csproj" />
   </ItemGroup>
 
 </Project>

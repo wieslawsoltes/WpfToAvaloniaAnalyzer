@@ -32,6 +32,7 @@ dotnet run --project WpfToAvaloniaAnalyzers.Cli -- --path <solution|project> [op
 | `--diagnostic`, `--diagnostics`, `-id` | Diagnostic IDs to fix (comma separated or repeated). Omitting fixes everything the bundled providers support. |
 | `--code-action`, `-a` | Filter code actions by title (exact or contains match). |
 | `--mode` | Execution strategy: `sequential` (default), `parallel`, or `fixall`. |
+| `--msbuild-fix` | Control MSBuild prep: `default` (package + SDK + property alignment), `avalonia` (package only), or `none`. |
 
 ### Examples
 
@@ -62,6 +63,15 @@ dotnet run --project WpfToAvaloniaAnalyzers.Cli -- \
   --document ../WpfToAvaloniaAnalyzers.Sample.Wpf/SampleControl.cs \
   --code-action "Remove WPF usings"
 ```
+
+### MSBuild Preparation
+
+Before the Roslyn workspace is created, the CLI runs a lightweight MSBuild transformation pass:
+
+- Ensures every targeted project has an `Avalonia` `PackageReference` (prefers `Directory.Packages.props` versions when present, otherwise defaults to `11.3.7`).
+- Converts `Microsoft.NET.Sdk.WindowsDesktop` projects to `Microsoft.NET.Sdk`, strips `<UseWPF>` flags, normalizes `<TargetFramework>` (removing `-windows` suffixes), enables nullable, and disables trimming.
+
+When a solution path is provided, every `.csproj` under that directory tree is processed. Updated project files are saved in-place before analysis continues.
 
 ### Exit Codes
 

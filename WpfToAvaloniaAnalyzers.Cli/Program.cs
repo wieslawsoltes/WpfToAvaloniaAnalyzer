@@ -14,6 +14,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 using Microsoft.CodeAnalysis.MSBuild;
 using WpfToAvaloniaAnalyzers;
 using WpfToAvaloniaAnalyzers.CodeFixes;
+using WpfToAvaloniaAnalyzers.MSBuild;
 
 namespace WpfToAvaloniaAnalyzers.Cli;
 
@@ -56,6 +57,7 @@ internal static class Program
         };
         var codeActionOption = new Option<string?>(new[] { "--code-action", "-a" }, "Code action title to apply when multiple fixes are available.");
         var modeOption = new Option<string?>(new[] { "--mode" }, () => "sequential", "Execution mode: sequential, parallel, or fixall.");
+        var msbuildFixOption = new Option<string?>(new[] { "--msbuild-fix" }, () => "default", "MSBuild transform preset: default, none, or avalonia.");
 
         var rootCommand = new RootCommand("Apply WpfToAvalonia code fixes using the Roslyn workspace API.")
         {
@@ -65,7 +67,8 @@ internal static class Program
             documentOption,
             diagnosticsOption,
             codeActionOption,
-            modeOption
+            modeOption,
+            msbuildFixOption
         };
 
         rootCommand.SetHandler(async context =>
@@ -84,8 +87,9 @@ internal static class Program
             var diagnosticValues = context.ParseResult.GetValueForOption(diagnosticsOption) ?? Array.Empty<string>();
             var codeActionTitle = context.ParseResult.GetValueForOption(codeActionOption);
             var modeValue = context.ParseResult.GetValueForOption(modeOption);
+            var msbuildFixValue = context.ParseResult.GetValueForOption(msbuildFixOption);
 
-            if (!ToolOptions.TryCreate(workspacePath, scopeValue, projectName, documentPath, diagnosticValues, codeActionTitle, modeValue, out var options, out var error))
+            if (!ToolOptions.TryCreate(workspacePath, scopeValue, projectName, documentPath, diagnosticValues, codeActionTitle, modeValue, msbuildFixValue, out var options, out var error))
             {
                 Console.Error.WriteLine(error);
                 Environment.ExitCode = 1;
@@ -105,6 +109,8 @@ internal static class Program
         {
             MSBuildLocator.RegisterDefaults();
         }
+
+        await ApplyMsbuildTransformsAsync(options, cancellationToken).ConfigureAwait(false);
 
         using var workspace = MSBuildWorkspace.Create();
         workspace.WorkspaceFailed += (_, e) =>
@@ -207,6 +213,96 @@ internal static class Program
         }
 
         return 0;
+    }
+
+    private static async Task ApplyMsbuildTransformsAsync(ToolOptions options, CancellationToken cancellationToken)
+    {
+        if (options.MsBuildFixMode == MsBuildFixMode.None)
+        {
+            return;
+        }
+
+        try
+        {
+            if (options.WorkspacePath.EndsWith(".csproj", StringComparison.OrdinalIgnoreCase))
+            {
+                await ApplyTransformsForProjectAsync(options.WorkspacePath, options.MsBuildFixMode, cancellationToken).ConfigureAwait(false);
+
+                return;
+            }
+
+            if (!options.WorkspacePath.EndsWith(".sln", StringComparison.OrdinalIgnoreCase))
+            {
+                return;
+            }
+
+            var solutionDirectory = Path.GetDirectoryName(options.WorkspacePath);
+            if (solutionDirectory is null)
+            {
+                return;
+            }
+
+            var anyChanged = false;
+
+            foreach (var project in Directory.EnumerateFiles(solutionDirectory, "*.csproj", SearchOption.AllDirectories))
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+
+                var changed = await ApplyTransformsForProjectAsync(project, options.MsBuildFixMode, cancellationToken).ConfigureAwait(false);
+                anyChanged |= changed;
+            }
+
+            if (anyChanged)
+            {
+                Console.WriteLine("MSBuild: Project files updated prior to Roslyn analysis.");
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.Error.WriteLine($"MSBuild transform failed: {ex.Message}");
+        }
+    }
+
+    private static async Task<bool> ApplyTransformsForProjectAsync(string projectPath, MsBuildFixMode mode, CancellationToken cancellationToken)
+    {
+        switch (mode)
+        {
+            case MsBuildFixMode.Avalonia:
+            {
+                var changed = await ProjectTransformer.EnsureAvaloniaPackageReferenceAsync(
+                    projectPath,
+                    cancellationToken: cancellationToken).ConfigureAwait(false);
+
+                if (changed)
+                {
+                    Console.WriteLine($"MSBuild: Added Avalonia package reference to '{projectPath}'.");
+                }
+
+                return changed;
+            }
+
+            case MsBuildFixMode.Default:
+            default:
+            {
+                var context = new ProjectTransformContext(
+                    projectPath,
+                    new[] { new PackageRequest("Avalonia", ProjectTransformer.DefaultAvaloniaVersion) });
+
+                var result = await ProjectTransformer.ApplyTransformsAsync(context, cancellationToken: cancellationToken).ConfigureAwait(false);
+
+                foreach (var diagnostic in result.Diagnostics)
+                {
+                    Console.WriteLine($"MSBuild: {diagnostic}");
+                }
+
+                if (result.ProjectChanged)
+                {
+                    Console.WriteLine($"MSBuild: '{projectPath}' updated via {string.Join(", ", result.AppliedTransforms)}.");
+                }
+
+                return result.ProjectChanged;
+            }
+        }
     }
 }
 
@@ -864,7 +960,8 @@ internal sealed record ResolvedOptions(
     ImmutableHashSet<string> ActiveDiagnosticIds,
     string? CodeActionTitle,
     string? DocumentPath,
-    ExecutionMode Mode);
+    ExecutionMode Mode,
+    MsBuildFixMode MsBuildFixMode);
 
 internal enum FixScope
 {
@@ -880,6 +977,13 @@ internal enum ExecutionMode
     FixAll
 }
 
+internal enum MsBuildFixMode
+{
+    Default,
+    None,
+    Avalonia
+}
+
 internal sealed class ToolOptions
 {
     private ToolOptions(
@@ -889,7 +993,8 @@ internal sealed class ToolOptions
         string? documentPath,
         ImmutableArray<string> diagnosticIds,
         string? codeActionTitle,
-        ExecutionMode mode)
+        ExecutionMode mode,
+        MsBuildFixMode msBuildFixMode)
     {
         WorkspacePath = workspacePath;
         ScopeOverride = scopeOverride;
@@ -898,6 +1003,7 @@ internal sealed class ToolOptions
         DiagnosticIds = diagnosticIds;
         CodeActionTitle = codeActionTitle;
         Mode = mode;
+        MsBuildFixMode = msBuildFixMode;
     }
 
     public string WorkspacePath { get; }
@@ -914,6 +1020,8 @@ internal sealed class ToolOptions
 
     public ExecutionMode Mode { get; }
 
+    public MsBuildFixMode MsBuildFixMode { get; }
+
     public static bool TryCreate(
         string workspacePath,
         string? scopeValue,
@@ -922,6 +1030,7 @@ internal sealed class ToolOptions
         IEnumerable<string>? diagnosticValues,
         string? codeActionTitle,
         string? modeValue,
+        string? msBuildFixValue,
         out ToolOptions options,
         out string? error)
     {
@@ -980,6 +1089,16 @@ internal sealed class ToolOptions
         var normalizedWorkspace = Path.GetFullPath(workspacePath.Trim());
         var normalizedProject = string.IsNullOrWhiteSpace(projectName) ? null : projectName.Trim();
         var normalizedCodeAction = string.IsNullOrWhiteSpace(codeActionTitle) ? null : codeActionTitle.Trim();
+        var msbuildFixMode = MsBuildFixMode.Default;
+        if (!string.IsNullOrWhiteSpace(msBuildFixValue))
+        {
+            if (!Enum.TryParse(msBuildFixValue, ignoreCase: true, out msbuildFixMode))
+            {
+                error = $"Unrecognized msbuild-fix '{msBuildFixValue}'. Expected default, none, or avalonia.";
+                options = default!;
+                return false;
+            }
+        }
 
         options = new ToolOptions(
             normalizedWorkspace,
@@ -988,7 +1107,8 @@ internal sealed class ToolOptions
             normalizedDocument,
             diagnosticsBuilder.ToImmutable(),
             normalizedCodeAction,
-            mode);
+            mode,
+            msbuildFixMode);
 
         error = null;
         return true;
@@ -1084,7 +1204,8 @@ internal sealed class ToolOptions
             ImmutableHashSet<string>.Empty.WithComparer(StringComparer.OrdinalIgnoreCase),
             CodeActionTitle,
             documentPath,
-            Mode);
+            Mode,
+            MsBuildFixMode);
 
         error = null;
         return true;
