@@ -33,10 +33,10 @@ public class PropertyMetadataCodeFixProvider : CodeFixProvider
         var diagnostic = context.Diagnostics.First();
         var diagnosticSpan = diagnostic.Location.SourceSpan;
 
+        var node = root.FindNode(diagnosticSpan, getInnermostNodeForTie: true);
+
         // Find the PropertyMetadata creation
-        var propertyMetadata = root.FindToken(diagnosticSpan.Start).Parent?.AncestorsAndSelf()
-            .OfType<ObjectCreationExpressionSyntax>()
-            .First();
+        var propertyMetadata = node?.FirstAncestorOrSelf<ObjectCreationExpressionSyntax>();
 
         if (propertyMetadata == null)
             return;
