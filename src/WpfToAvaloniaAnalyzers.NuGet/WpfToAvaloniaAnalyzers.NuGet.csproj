@@ -1,0 +1,27 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>netstandard2.0</TargetFramework>
+    <IncludeBuildOutput>false</IncludeBuildOutput>
+    <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+    <RootNamespace>WpfToAvaloniaAnalyzers.NuGet</RootNamespace>
+    <AssemblyName>WpfToAvaloniaAnalyzers.NuGet</AssemblyName>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <PackageId>WpfToAvaloniaAnalyzers</PackageId>
+    <PackageVersion>1.0.0</PackageVersion>
+    <Title>WpfToAvalonia Analyzer Bundle</Title>
+    <Description>Primary NuGet package that bundles the WpfToAvalonia analyzers and code fixes for migrating WPF applications to Avalonia UI.</Description>
+    <PackageTags>roslyn;analyzer;codefix;wpf;avalonia;migration</PackageTags>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <DevelopmentDependency>true</DevelopmentDependency>
+    <NoPackageAnalysis>true</NoPackageAnalysis>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\WpfToAvaloniaAnalyzers\WpfToAvaloniaAnalyzers.csproj" />
+    <ProjectReference Include="..\WpfToAvaloniaAnalyzers.CodeFixes\WpfToAvaloniaAnalyzers.CodeFixes.csproj" />
+  </ItemGroup>
+
+</Project>

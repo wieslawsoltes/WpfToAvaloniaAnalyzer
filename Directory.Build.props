@@ -1,0 +1,47 @@
+<Project>
+  <PropertyGroup>
+    <!-- Shared package metadata -->
+    <PackageProjectUrl Condition="'$(PackageProjectUrl)' == ''">https://github.com/wieslawsoltes/WpfToAvaloniaAnalyzer</PackageProjectUrl>
+    <RepositoryUrl Condition="'$(RepositoryUrl)' == ''">https://github.com/wieslawsoltes/WpfToAvaloniaAnalyzer</RepositoryUrl>
+    <RepositoryType Condition="'$(RepositoryType)' == ''">git</RepositoryType>
+    <PackageReadmeFile Condition="'$(PackageReadmeFile)' == ''">README.md</PackageReadmeFile>
+    <PackageRequireLicenseAcceptance Condition="'$(PackageRequireLicenseAcceptance)' == ''">false</PackageRequireLicenseAcceptance>
+    <Authors Condition="'$(Authors)' == ''">Wieslaw Soltes</Authors>
+    <Company Condition="'$(Company)' == ''">WpfToAvalonia</Company>
+    <VersionPrefix Condition="'$(VersionPrefix)' == ''">0.1.0</VersionPrefix>
+    <VersionSuffix Condition="'$(VersionSuffix)' == ''"></VersionSuffix>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(IsPackable)' == 'true'">
+    <IncludeSymbols Condition="'$(IncludeSymbols)' == ''">true</IncludeSymbols>
+    <SymbolPackageFormat Condition="'$(SymbolPackageFormat)' == ''">snupkg</SymbolPackageFormat>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+  </PropertyGroup>
+
+  <ItemGroup Condition="'$(IsPackable)' == 'true' and Exists('$(MSBuildThisFileDirectory)README.md')">
+    <None Include="$(MSBuildThisFileDirectory)README.md"
+          Pack="true"
+          PackagePath="\"
+          Link="README.md"
+          PackageCopyToOutput="false" />
+  </ItemGroup>
+
+  <PropertyGroup Condition="'$(IsAnalyzerProject)' == 'true'">
+    <IncludeBuildOutput>false</IncludeBuildOutput>
+    <TargetsForTfmSpecificBuildOutput>$(TargetsForTfmSpecificBuildOutput);PackAnalyzerArtifacts</TargetsForTfmSpecificBuildOutput>
+  </PropertyGroup>
+
+  <Target Name="PackAnalyzerArtifacts"
+          Condition="'$(IsAnalyzerProject)' == 'true'"
+          DependsOnTargets="Build">
+    <ItemGroup>
+      <TfmSpecificPackageFile Include="$(TargetPath)">
+        <PackagePath>analyzers/dotnet/cs</PackagePath>
+      </TfmSpecificPackageFile>
+      <TfmSpecificPackageFile Include="$(TargetDir)$(AssemblyName).xml"
+                              Condition="Exists('$(TargetDir)$(AssemblyName).xml')">
+        <PackagePath>analyzers/dotnet/cs</PackagePath>
+      </TfmSpecificPackageFile>
+    </ItemGroup>
+  </Target>
+</Project>

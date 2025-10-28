@@ -19,7 +19,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\WpfToAvaloniaAnalyzers.Cli\WpfToAvaloniaAnalyzers.Cli.csproj" />
+    <ProjectReference Include="..\..\src\WpfToAvaloniaAnalyzers.Cli\WpfToAvaloniaAnalyzers.Cli.csproj" />
   </ItemGroup>
 
 </Project>

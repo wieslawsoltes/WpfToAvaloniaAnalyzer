@@ -9,6 +9,18 @@
     <IsRoslynComponent>true</IsRoslynComponent>
   </PropertyGroup>
 
+  <PropertyGroup>
+    <IsPackable>true</IsPackable>
+    <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+    <PackageId>WpfToAvaloniaAnalyzers.Analyzers</PackageId>
+    <PackageVersion>1.0.0</PackageVersion>
+    <Title>WpfToAvalonia Analyzers</Title>
+    <Description>Core Roslyn analyzers that assist with migrating WPF applications to Avalonia UI.</Description>
+    <PackageTags>roslyn;analyzer;wpf;avalonia;migration</PackageTags>
+    <PackageType>Analyzer</PackageType>
+    <IsAnalyzerProject>true</IsAnalyzerProject>
+  </PropertyGroup>
+
   <ItemGroup>
     <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="4.8.0" PrivateAssets="all" />
     <PackageReference Include="Microsoft.CodeAnalysis.Analyzers" Version="3.3.4" PrivateAssets="all" />

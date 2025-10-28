@@ -11,10 +11,10 @@
 
   <ItemGroup>
     <!-- Add analyzer as a project reference for testing -->
-    <ProjectReference Include="..\WpfToAvaloniaAnalyzers\WpfToAvaloniaAnalyzers.csproj"
+    <ProjectReference Include="..\..\src\WpfToAvaloniaAnalyzers\WpfToAvaloniaAnalyzers.csproj"
                       OutputItemType="Analyzer"
                       ReferenceOutputAssembly="false" />
-    <ProjectReference Include="..\WpfToAvaloniaAnalyzers.CodeFixes\WpfToAvaloniaAnalyzers.CodeFixes.csproj"
+    <ProjectReference Include="..\..\src\WpfToAvaloniaAnalyzers.CodeFixes\WpfToAvaloniaAnalyzers.CodeFixes.csproj"
                       OutputItemType="Analyzer"
                       ReferenceOutputAssembly="false" />
   </ItemGroup>
