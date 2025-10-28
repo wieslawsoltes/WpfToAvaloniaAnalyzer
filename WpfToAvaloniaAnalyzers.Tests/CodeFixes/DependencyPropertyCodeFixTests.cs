@@ -65,6 +65,217 @@ namespace TestNamespace
     }
 
     [Fact]
+    public async Task ConvertDependencyProperty_WithFrameworkMetadataDefaultValue()
+    {
+        var testCode = @"
+using System.Windows;
+using System.Windows.Controls;
+
+namespace TestNamespace
+{
+    public enum ShirtColors
+    {
+        None,
+        Red
+    }
+
+    public class Shirt : Control
+    {
+        public static readonly DependencyProperty {|#0:ShirtColorProperty|} =
+            DependencyProperty.Register(
+                nameof(ShirtColor),
+                typeof(ShirtColors),
+                typeof(Shirt),
+                new FrameworkPropertyMetadata(ShirtColors.None));
+
+        public ShirtColors ShirtColor
+        {
+            get => (ShirtColors)GetValue(ShirtColorProperty);
+            set => SetValue(ShirtColorProperty, value);
+        }
+    }
+}";
+
+        var fixedCode = @"
+using System.Windows;
+using System.Windows.Controls;
+using Avalonia;
+using Avalonia.Controls;
+
+namespace TestNamespace
+{
+    public enum ShirtColors
+    {
+        None,
+        Red
+    }
+
+    public class Shirt : Avalonia.Controls.Control
+    {
+        public static readonly StyledProperty<ShirtColors> ShirtColorProperty = AvaloniaProperty.Register<Shirt, ShirtColors>(nameof(ShirtColor), ShirtColors.None);
+
+        public ShirtColors ShirtColor
+        {
+            get => (ShirtColors)GetValue(ShirtColorProperty);
+            set => SetValue(ShirtColorProperty, value);
+        }
+    }
+}";
+
+        var expected = new DiagnosticResult(DiagnosticDescriptors.WA001_ConvertDependencyPropertyToAvaloniaProperty)
+            .WithLocation(0)
+            .WithArguments("ShirtColorProperty");
+
+        await CodeFixTestHelper.VerifyCodeFixAsync(testCode, expected, fixedCode);
+    }
+
+    [Fact]
+    public async Task ConvertDependencyProperty_WithFrameworkMetadataOptions()
+    {
+        var testCode = @"
+using System.Windows;
+using System.Windows.Controls;
+
+namespace TestNamespace
+{
+    public class MyControl : Control
+    {
+        public static readonly DependencyProperty {|#0:RenderHintProperty|} =
+            DependencyProperty.Register(
+                nameof(RenderHint),
+                typeof(double),
+                typeof(MyControl),
+                new FrameworkPropertyMetadata(
+                    1.0,
+                    FrameworkPropertyMetadataOptions.AffectsRender));
+
+        public double RenderHint
+        {
+            get => (double)GetValue(RenderHintProperty);
+            set => SetValue(RenderHintProperty, value);
+        }
+    }
+}";
+
+        var fixedCode = @"
+using System.Windows;
+using System.Windows.Controls;
+using Avalonia;
+using Avalonia.Controls;
+
+namespace TestNamespace
+{
+    public class MyControl : Avalonia.Controls.Control
+    {
+        static MyControl()
+        {
+            AffectsRender<MyControl>(RenderHintProperty);
+        }
+
+        public static readonly StyledProperty<double> RenderHintProperty = AvaloniaProperty.Register<MyControl, double>(nameof(RenderHint), 1.0);
+
+        public double RenderHint
+        {
+            get => (double)GetValue(RenderHintProperty);
+            set => SetValue(RenderHintProperty, value);
+        }
+    }
+}";
+
+        var expected = new DiagnosticResult(DiagnosticDescriptors.WA001_ConvertDependencyPropertyToAvaloniaProperty)
+            .WithLocation(0)
+            .WithArguments("RenderHintProperty");
+
+        await CodeFixTestHelper.VerifyCodeFixAsync(testCode, expected, fixedCode);
+    }
+
+    [Fact]
+    public async Task ConvertDependencyProperty_WithMetadataCallbacks()
+    {
+        var testCode = @"
+using System.Windows;
+using System.Windows.Controls;
+
+namespace TestNamespace
+{
+    public class Shirt : Control
+    {
+        public static readonly DependencyProperty {|#0:ButtonColorProperty|} =
+            DependencyProperty.Register(
+                nameof(ButtonColor),
+                typeof(int),
+                typeof(Shirt),
+                new FrameworkPropertyMetadata(
+                    1,
+                    OnButtonColorChanged,
+                    CoerceButtonColor),
+                ValidateButtonColor);
+
+        public int ButtonColor
+        {
+            get => (int)GetValue(ButtonColorProperty);
+            set => SetValue(ButtonColorProperty, value);
+        }
+
+        private static void OnButtonColorChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
+        {
+            d.CoerceValue(ButtonColorProperty);
+        }
+
+        private static object CoerceButtonColor(DependencyObject d, object value)
+        {
+            return value;
+        }
+
+        private static bool ValidateButtonColor(object value) => true;
+    }
+}";
+
+        var fixedCode = @"
+using System.Windows;
+using System.Windows.Controls;
+using Avalonia;
+using Avalonia.Controls;
+
+namespace TestNamespace
+{
+    public class Shirt : Avalonia.Controls.Control
+    {
+        static Shirt()
+        {
+            ButtonColorProperty.Changed.AddClassHandler<Shirt, int>((Shirt sender, AvaloniaPropertyChangedEventArgs<int> args) => OnButtonColorChanged(sender, args));
+        }
+
+        public static readonly StyledProperty<int> ButtonColorProperty = AvaloniaProperty.Register<Shirt, int>(nameof(ButtonColor), 1, validate: ValidateButtonColor, coerce: CoerceButtonColor);
+
+        public int ButtonColor
+        {
+            get => (int)GetValue(ButtonColorProperty);
+            set => SetValue(ButtonColorProperty, value);
+        }
+
+        private static void OnButtonColorChanged(Shirt d, AvaloniaPropertyChangedEventArgs<int> e)
+        {
+            d.CoerceValue(ButtonColorProperty);
+        }
+
+        private static int CoerceButtonColor(AvaloniaObject d, int value)
+        {
+            return value;
+        }
+
+        private static bool ValidateButtonColor(int value) => true;
+    }
+}";
+
+        var expected = new DiagnosticResult(DiagnosticDescriptors.WA001_ConvertDependencyPropertyToAvaloniaProperty)
+            .WithLocation(0)
+            .WithArguments("ButtonColorProperty");
+
+        await CodeFixTestHelper.VerifyCodeFixAsync(testCode, expected, fixedCode);
+    }
+
+    [Fact]
     public async Task ConvertMultipleDependencyProperties()
     {
         var testCode = @"

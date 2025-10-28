@@ -33,6 +33,8 @@ dotnet run --project WpfToAvaloniaAnalyzers.Cli -- --path <solution|project> [op
 | `--code-action`, `-a` | Filter code actions by title (exact or contains match). |
 | `--mode` | Execution strategy: `sequential` (default), `parallel`, or `fixall`. |
 
+The bundled analyzers now cover routed events end-to-end. Pass `--diagnostics WA015,WA016,WA017,WA018,WA019,WA020` to focus the CLI on routed-event field registrations, CLR accessors, class handlers, instance handlers, `RaiseEvent` calls, and `AddOwner` usage.
+
 ### Examples
 
 Fix every supported diagnostic across the solution:
@@ -51,6 +53,15 @@ dotnet run --project WpfToAvaloniaAnalyzers.Cli -- \
   --scope project \
   --project WpfToAvaloniaAnalyzers.Sample.Wpf \
   --diagnostics WA002,WA004
+```
+
+Fix routed-event diagnostics across a project in one pass using FixAll:
+
+```bash
+dotnet run --project WpfToAvaloniaAnalyzers.Cli -- \
+  --path ../WpfToAvaloniaAnalyzers.Sample.Wpf/WpfToAvaloniaAnalyzers.Sample.Wpf.csproj \
+  --diagnostics WA015,WA016,WA017,WA018,WA019,WA020 \
+  --mode fixall
 ```
 
 Fix a document using a particular code action:

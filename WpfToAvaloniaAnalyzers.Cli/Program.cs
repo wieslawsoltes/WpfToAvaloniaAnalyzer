@@ -218,6 +218,7 @@ internal static class AnalyzerLoader
         var analyzers = assembly
             .GetTypes()
             .Where(static type => !type.IsAbstract && typeof(DiagnosticAnalyzer).IsAssignableFrom(type))
+            .OrderBy(static type => type.FullName, StringComparer.Ordinal)
             .Select(static type => (DiagnosticAnalyzer)Activator.CreateInstance(type)!)
             .ToImmutableArray();
 
@@ -230,6 +231,7 @@ internal static class AnalyzerLoader
         var providers = assembly
             .GetTypes()
             .Where(static type => !type.IsAbstract && typeof(CodeFixProvider).IsAssignableFrom(type))
+            .OrderBy(static type => type.FullName, StringComparer.Ordinal)
             .Select(static type => (CodeFixProvider)Activator.CreateInstance(type)!)
             .ToImmutableArray();
 
@@ -244,11 +246,30 @@ internal static class AnalyzerLoader
             .SelectMany(provider => provider.FixableDiagnosticIds)
             .ToImmutableHashSet(StringComparer.OrdinalIgnoreCase);
 
-        return new CodeFixProviderSet(providers, fixableIds);
+        var providersByDiagnosticId = providers
+            .SelectMany(provider => provider.FixableDiagnosticIds.Select(id => (id, provider)))
+            .GroupBy(item => item.id, item => item.provider, StringComparer.OrdinalIgnoreCase)
+            .ToImmutableDictionary(
+                group => group.Key,
+                group => group
+                    .OrderBy(provider => provider.GetType().FullName, StringComparer.Ordinal)
+                    .ToImmutableArray(),
+                StringComparer.OrdinalIgnoreCase);
+
+        var fixAllCapableDiagnostics = providersByDiagnosticId
+            .Where(pair => pair.Value.Any(provider => provider.GetFixAllProvider() is not null))
+            .Select(pair => pair.Key)
+            .ToImmutableHashSet(StringComparer.OrdinalIgnoreCase);
+
+        return new CodeFixProviderSet(providers, fixableIds, providersByDiagnosticId, fixAllCapableDiagnostics);
     }
 }
 
-internal sealed record CodeFixProviderSet(ImmutableArray<CodeFixProvider> Providers, ImmutableHashSet<string> FixableDiagnosticIds);
+internal sealed record CodeFixProviderSet(
+    ImmutableArray<CodeFixProvider> Providers,
+    ImmutableHashSet<string> FixableDiagnosticIds,
+    ImmutableDictionary<string, ImmutableArray<CodeFixProvider>> ProvidersByDiagnosticId,
+    ImmutableHashSet<string> FixAllCapableDiagnosticIds);
 
 internal static class CodeFixApplier
 {

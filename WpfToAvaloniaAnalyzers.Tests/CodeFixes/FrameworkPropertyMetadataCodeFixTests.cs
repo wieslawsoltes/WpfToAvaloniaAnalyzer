@@ -116,10 +116,10 @@ namespace TestNamespace
         static MyControl()
         {
             AffectsArrange<MyControl>(LevelProperty);
-            LevelProperty.Changed.AddClassHandler<MyControl>((sender, args) => OnLevelChanged(sender, args));
+            LevelProperty.Changed.AddClassHandler<MyControl, int>((MyControl sender, AvaloniaPropertyChangedEventArgs<int> args) => OnLevelChanged(sender, args));
         }
 
-        public static readonly StyledProperty<int> LevelProperty = AvaloniaProperty.Register<MyControl, int>(""Level"", 10, inherits: true, validate: value => IsValidLevel(value));
+        public static readonly StyledProperty<int> LevelProperty = AvaloniaProperty.Register<MyControl, int>(""Level"", 10, inherits: true, validate: IsValidLevel);
 
         public int Level
         {
@@ -127,11 +127,11 @@ namespace TestNamespace
             set => SetValue(LevelProperty, value);
         }
 
-        private static void OnLevelChanged(AvaloniaObject d, AvaloniaPropertyChangedEventArgs e)
+        private static void OnLevelChanged(MyControl d, AvaloniaPropertyChangedEventArgs<int> e)
         {
         }
 
-        private static bool IsValidLevel(object value) => true;
+        private static bool IsValidLevel(int value) => true;
     }
 }
 ";

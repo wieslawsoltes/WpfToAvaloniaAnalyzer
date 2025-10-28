@@ -124,4 +124,58 @@ public static class DiagnosticDescriptors
         isEnabledByDefault: true,
         description: "Applies all available WPF to Avalonia code fixes for this file.",
         customTags: WellKnownDiagnosticTags.CompilationEnd);
+
+    public static readonly DiagnosticDescriptor WA015_ConvertRoutedEventField = new(
+        id: "WA015",
+        title: "Convert WPF routed event field to Avalonia routed event",
+        messageFormat: "RoutedEvent '{0}' should be converted to Avalonia RoutedEvent<TEventArgs>",
+        category: Category,
+        defaultSeverity: DiagnosticSeverity.Warning,
+        isEnabledByDefault: true,
+        description: "WPF routed event registrations should be migrated to Avalonia RoutedEvent<TEventArgs> using RoutedEvent.Register.");
+
+    public static readonly DiagnosticDescriptor WA016_ConvertRoutedEventAccessors = new(
+        id: "WA016",
+        title: "Convert WPF routed event accessors to Avalonia pattern",
+        messageFormat: "Event '{0}' should be updated to use Avalonia routed event accessor pattern",
+        category: Category,
+        defaultSeverity: DiagnosticSeverity.Warning,
+        isEnabledByDefault: true,
+        description: "WPF routed event CLR accessors should be migrated to Avalonia AddHandler/RemoveHandler usage with strongly typed event handlers.");
+
+    public static readonly DiagnosticDescriptor WA017_ConvertRegisterClassHandler = new(
+        id: "WA017",
+        title: "Convert EventManager.RegisterClassHandler to Avalonia AddClassHandler",
+        messageFormat: "Class handler registration for '{0}' should be converted to Avalonia AddClassHandler",
+        category: Category,
+        defaultSeverity: DiagnosticSeverity.Warning,
+        isEnabledByDefault: true,
+        description: "EventManager.RegisterClassHandler calls should be converted to Avalonia's AddClassHandler APIs.");
+
+    public static readonly DiagnosticDescriptor WA018_ConvertAddRemoveHandler = new(
+        id: "WA018",
+        title: "Convert AddHandler/RemoveHandler usage to Avalonia overloads",
+        messageFormat: "Handler for '{0}' should be migrated to Avalonia AddHandler/RemoveHandler overloads",
+        category: Category,
+        defaultSeverity: DiagnosticSeverity.Info,
+        isEnabledByDefault: true,
+        description: "WPF AddHandler/RemoveHandler calls should be updated to use Avalonia's strongly typed overloads and routing strategies.");
+
+    public static readonly DiagnosticDescriptor WA019_ConvertRaiseEvent = new(
+        id: "WA019",
+        title: "Convert RaiseEvent usage to Avalonia",
+        messageFormat: "RaiseEvent invocation should be converted to Avalonia syntax",
+        category: Category,
+        defaultSeverity: DiagnosticSeverity.Info,
+        isEnabledByDefault: true,
+        description: "WPF RaiseEvent calls should be converted to Avalonia's RaiseEvent helpers with Avalonia event args.");
+
+    public static readonly DiagnosticDescriptor WA020_ConvertAddOwner = new(
+        id: "WA020",
+        title: "Convert routed event AddOwner usage",
+        messageFormat: "Routed event AddOwner call should be converted to Avalonia AddOwner pattern",
+        category: Category,
+        defaultSeverity: DiagnosticSeverity.Info,
+        isEnabledByDefault: true,
+        description: "WPF routed event AddOwner invocations should be migrated to Avalonia's AddOwner APIs.");
 }

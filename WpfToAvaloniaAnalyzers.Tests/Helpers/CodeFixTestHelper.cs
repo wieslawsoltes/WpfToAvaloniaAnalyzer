@@ -25,7 +25,8 @@ public static class CodeFixTestHelper
         string fixedSource,
         CompilerDiagnostics compilerDiagnostics = CompilerDiagnostics.Errors,
         bool relaxDiagnostics = false,
-        CSharpParseOptions? parseOptions = null)
+        CSharpParseOptions? parseOptions = null,
+        int numberOfIterations = 1)
         where TAnalyzer : DiagnosticAnalyzer, new()
         where TCodeFix : Microsoft.CodeAnalysis.CodeFixes.CodeFixProvider, new()
     {
@@ -36,6 +37,9 @@ public static class CodeFixTestHelper
             ReferenceAssemblies = ReferenceAssemblies.Net.Net80,
             TestBehaviors = TestBehaviors.SkipGeneratedCodeCheck
         };
+
+        test.NumberOfFixAllIterations = numberOfIterations;
+        test.NumberOfIncrementalIterations = numberOfIterations;
 
         if (parseOptions != null)
         {

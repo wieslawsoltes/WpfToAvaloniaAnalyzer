@@ -51,7 +51,7 @@ namespace TestNamespace
     {
         static MyControl()
         {
-            CountProperty.Changed.AddClassHandler<MyControl>((sender, args) => OnCountChanged(sender, args));
+            CountProperty.Changed.AddClassHandler<MyControl, int>((MyControl sender, AvaloniaPropertyChangedEventArgs<int> args) => OnCountChanged(sender, args));
         }
 
         public static readonly StyledProperty<int> CountProperty = AvaloniaProperty.Register<MyControl, int>(""Count"", 0);
@@ -62,7 +62,7 @@ namespace TestNamespace
             set => SetValue(CountProperty, value);
         }
 
-        private static void OnCountChanged(AvaloniaObject d, AvaloniaPropertyChangedEventArgs e)
+        private static void OnCountChanged(MyControl d, AvaloniaPropertyChangedEventArgs<int> e)
         {
             // Handle property changed
         }
@@ -123,7 +123,7 @@ namespace TestNamespace
     {
         static MyControl()
         {
-            ScoreProperty.Changed.AddClassHandler<MyControl>((sender, args) => OnScoreChanged(sender, args));
+            ScoreProperty.Changed.AddClassHandler<MyControl, double>((MyControl sender, AvaloniaPropertyChangedEventArgs<double> args) => OnScoreChanged(sender, args));
         }
 
         public static readonly StyledProperty<double> ScoreProperty = AvaloniaProperty.Register<MyControl, double>(""Score"", 100.0);
@@ -134,7 +134,7 @@ namespace TestNamespace
             set => SetValue(ScoreProperty, value);
         }
 
-        private static void OnScoreChanged(AvaloniaObject d, AvaloniaPropertyChangedEventArgs e)
+        private static void OnScoreChanged(MyControl d, AvaloniaPropertyChangedEventArgs<double> e)
         {
             if (d is MyControl control)
             {
@@ -195,7 +195,7 @@ namespace TestNamespace
     {
         static MyControl()
         {
-            NameProperty.Changed.AddClassHandler<MyControl>((sender, args) => OnNameChanged(sender, args));
+            NameProperty.Changed.AddClassHandler<MyControl, string>((MyControl sender, AvaloniaPropertyChangedEventArgs<string> args) => OnNameChanged(sender, args));
         }
 
         public static readonly StyledProperty<string> NameProperty = AvaloniaProperty.Register<MyControl, string>(""Name"", ""Default"");
@@ -206,7 +206,7 @@ namespace TestNamespace
             set => SetValue(NameProperty, value);
         }
 
-        private static void OnNameChanged(AvaloniaObject d, AvaloniaPropertyChangedEventArgs e)
+        private static void OnNameChanged(MyControl d, AvaloniaPropertyChangedEventArgs<string> e)
         {
             // Handle name changed
         }

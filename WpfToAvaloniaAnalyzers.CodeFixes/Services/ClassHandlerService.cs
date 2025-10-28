@@ -52,7 +52,7 @@ public static class ClassHandlerService
             }
         }
 
-        var handlerStatement = CreateHandlerStatement(propertyIdentifier, callbackExpression, ownerType);
+        var handlerStatement = CreateHandlerStatement(propertyIdentifier, callbackExpression, ownerType, propertyType);
 
         var staticCtor = finalClass.Members
             .OfType<ConstructorDeclarationSyntax>()
@@ -109,7 +109,7 @@ public static class ClassHandlerService
 
             if (residualMethod != null)
             {
-                var fixedMethod = UpdateCallbackSignature(residualMethod);
+                var fixedMethod = UpdateCallbackSignature(residualMethod, ownerType, propertyType);
                 updatedRoot = updatedRoot.ReplaceNode(residualMethod, fixedMethod);
             }
         }
@@ -125,15 +125,30 @@ public static class ClassHandlerService
     private static ExpressionStatementSyntax CreateHandlerStatement(
         string propertyIdentifier,
         ExpressionSyntax callbackExpression,
-        TypeSyntax ownerType)
+        TypeSyntax ownerType,
+        TypeSyntax? propertyType)
     {
+        var senderParameter = SyntaxFactory.Parameter(SyntaxFactory.Identifier("sender"))
+            .WithType(ownerType.WithoutTrivia());
+
+        TypeSyntax argsParameterType = propertyType != null
+            ? SyntaxFactory.GenericName(
+                    SyntaxFactory.Identifier("AvaloniaPropertyChangedEventArgs"))
+                .WithTypeArgumentList(
+                    SyntaxFactory.TypeArgumentList(
+                        SyntaxFactory.SingletonSeparatedList(propertyType.WithoutTrivia())))
+            : SyntaxFactory.IdentifierName("AvaloniaPropertyChangedEventArgs");
+
+        var argsParameter = SyntaxFactory.Parameter(SyntaxFactory.Identifier("args"))
+            .WithType(argsParameterType);
+
         var handlerLambda = SyntaxFactory.ParenthesizedLambdaExpression()
             .WithParameterList(
                 SyntaxFactory.ParameterList(
                     SyntaxFactory.SeparatedList(new[]
                     {
-                        SyntaxFactory.Parameter(SyntaxFactory.Identifier("sender")),
-                        SyntaxFactory.Parameter(SyntaxFactory.Identifier("args"))
+                        senderParameter,
+                        argsParameter
                     })))
             .WithBody(
                 SyntaxFactory.InvocationExpression(
@@ -145,6 +160,29 @@ public static class ClassHandlerService
                             SyntaxFactory.Argument(SyntaxFactory.IdentifierName("args"))
                         }))));
 
+        SimpleNameSyntax handlerName;
+
+        if (propertyType != null)
+        {
+            handlerName = SyntaxFactory.GenericName(
+                    SyntaxFactory.Identifier("AddClassHandler"))
+                .WithTypeArgumentList(
+                    SyntaxFactory.TypeArgumentList(
+                        SyntaxFactory.SeparatedList(new[]
+                        {
+                            ownerType.WithoutTrivia(),
+                            propertyType.WithoutTrivia()
+                        })));
+        }
+        else
+        {
+            handlerName = SyntaxFactory.GenericName(
+                    SyntaxFactory.Identifier("AddClassHandler"))
+                .WithTypeArgumentList(
+                    SyntaxFactory.TypeArgumentList(
+                        SyntaxFactory.SingletonSeparatedList(ownerType.WithoutTrivia())));
+        }
+
         var addHandlerInvocation = SyntaxFactory.InvocationExpression(
             SyntaxFactory.MemberAccessExpression(
                 SyntaxKind.SimpleMemberAccessExpression,
@@ -152,11 +190,7 @@ public static class ClassHandlerService
                     SyntaxKind.SimpleMemberAccessExpression,
                     SyntaxFactory.IdentifierName(propertyIdentifier),
                     SyntaxFactory.IdentifierName("Changed")),
-                SyntaxFactory.GenericName(
-                        SyntaxFactory.Identifier("AddClassHandler"))
-                    .WithTypeArgumentList(
-                        SyntaxFactory.TypeArgumentList(
-                            SyntaxFactory.SingletonSeparatedList(ownerType.WithoutTrivia())))))
+                handlerName))
             .WithArgumentList(
                 SyntaxFactory.ArgumentList(
                     SyntaxFactory.SingletonSeparatedList(
@@ -166,7 +200,9 @@ public static class ClassHandlerService
     }
 
     private static MethodDeclarationSyntax UpdateCallbackSignature(
-        MethodDeclarationSyntax method)
+        MethodDeclarationSyntax method,
+        TypeSyntax ownerType,
+        TypeSyntax? propertyType)
     {
         var parameters = method.ParameterList.Parameters;
         if (parameters.Count != 2)
@@ -175,11 +211,25 @@ public static class ClassHandlerService
         var firstParam = parameters[0];
         var secondParam = parameters[1];
 
-        var newFirstParamType = SyntaxFactory.IdentifierName("AvaloniaObject")
+        var newFirstParamType = ownerType.WithoutTrivia()
             .WithLeadingTrivia(firstParam.Type?.GetLeadingTrivia() ?? default)
             .WithTrailingTrivia(firstParam.Type?.GetTrailingTrivia() ?? SyntaxFactory.TriviaList(SyntaxFactory.Space));
 
-        var newSecondParamType = SyntaxFactory.IdentifierName("AvaloniaPropertyChangedEventArgs")
+        TypeSyntax newSecondParamType;
+        if (propertyType != null)
+        {
+            newSecondParamType = SyntaxFactory.GenericName(
+                    SyntaxFactory.Identifier("AvaloniaPropertyChangedEventArgs"))
+                .WithTypeArgumentList(
+                    SyntaxFactory.TypeArgumentList(
+                        SyntaxFactory.SingletonSeparatedList(propertyType.WithoutTrivia())));
+        }
+        else
+        {
+            newSecondParamType = SyntaxFactory.IdentifierName("AvaloniaPropertyChangedEventArgs");
+        }
+
+        newSecondParamType = newSecondParamType
             .WithLeadingTrivia(secondParam.Type?.GetLeadingTrivia() ?? default)
             .WithTrailingTrivia(secondParam.Type?.GetTrailingTrivia() ?? SyntaxFactory.TriviaList(SyntaxFactory.Space));
 

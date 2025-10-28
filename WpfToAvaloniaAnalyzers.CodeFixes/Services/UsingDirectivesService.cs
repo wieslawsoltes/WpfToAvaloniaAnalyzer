@@ -48,6 +48,23 @@ public static class UsingDirectivesService
         return compilationUnit.WithUsings(SyntaxFactory.List(usings));
     }
 
+    public static CompilationUnitSyntax AddAvaloniaInteractivityUsing(CompilationUnitSyntax compilationUnit)
+    {
+        if (compilationUnit.Usings.Any(u => u.Name?.ToString() == "Avalonia.Interactivity"))
+        {
+            return compilationUnit;
+        }
+
+        var interactivityUsing = SyntaxFactory.UsingDirective(
+                SyntaxFactory.QualifiedName(
+                    SyntaxFactory.IdentifierName("Avalonia"),
+                    SyntaxFactory.IdentifierName("Interactivity")))
+            .WithUsingKeyword(SyntaxFactory.Token(SyntaxKind.UsingKeyword).WithTrailingTrivia(SyntaxFactory.Space))
+            .WithSemicolonToken(SyntaxFactory.Token(SyntaxKind.SemicolonToken).WithTrailingTrivia(SyntaxFactory.LineFeed));
+
+        return compilationUnit.WithUsings(compilationUnit.Usings.Add(interactivityUsing));
+    }
+
     public static CompilationUnitSyntax AddAvaloniaDataUsing(CompilationUnitSyntax compilationUnit)
     {
         var hasAvaloniaDataUsing = compilationUnit.Usings

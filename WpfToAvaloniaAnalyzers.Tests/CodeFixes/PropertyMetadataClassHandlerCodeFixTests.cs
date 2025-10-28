@@ -49,7 +49,7 @@ namespace TestNamespace
     {
         static MyControl()
         {
-            CountProperty.Changed.AddClassHandler<MyControl>((sender, args) => OnCountChanged(sender, args));
+            CountProperty.Changed.AddClassHandler<MyControl, int>((MyControl sender, AvaloniaPropertyChangedEventArgs<int> args) => OnCountChanged(sender, args));
         }
 
         public static readonly StyledProperty<int> CountProperty = AvaloniaProperty.Register<MyControl, int>(""Count"", 0);
@@ -60,7 +60,7 @@ namespace TestNamespace
             set => SetValue(CountProperty, value);
         }
 
-        private static void OnCountChanged(AvaloniaObject d, AvaloniaPropertyChangedEventArgs e)
+        private static void OnCountChanged(MyControl d, AvaloniaPropertyChangedEventArgs<int> e)
         {
             // Handle property changed
         }

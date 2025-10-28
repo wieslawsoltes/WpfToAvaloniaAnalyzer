@@ -13,6 +13,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WpfToAvaloniaAnalyzers.Samp
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WpfToAvaloniaAnalyzers.Cli", "WpfToAvaloniaAnalyzers.Cli\WpfToAvaloniaAnalyzers.Cli.csproj", "{93995464-3184-40A0-BE71-E4E72E92ADDB}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WpfToAvaloniaAnalyzers.Cli.Tests", "WpfToAvaloniaAnalyzers.Cli.Tests\WpfToAvaloniaAnalyzers.Cli.Tests.csproj", "{FE5FAF5D-7A17-4026-BD59-EE702300F8AC}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -42,5 +44,9 @@ Global
 		{93995464-3184-40A0-BE71-E4E72E92ADDB}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{93995464-3184-40A0-BE71-E4E72E92ADDB}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{93995464-3184-40A0-BE71-E4E72E92ADDB}.Release|Any CPU.Build.0 = Release|Any CPU
+		{FE5FAF5D-7A17-4026-BD59-EE702300F8AC}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{FE5FAF5D-7A17-4026-BD59-EE702300F8AC}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{FE5FAF5D-7A17-4026-BD59-EE702300F8AC}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{FE5FAF5D-7A17-4026-BD59-EE702300F8AC}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal

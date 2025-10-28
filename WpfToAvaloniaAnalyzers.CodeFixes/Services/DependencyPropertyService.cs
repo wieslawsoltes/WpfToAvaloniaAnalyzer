@@ -41,7 +41,13 @@ public static class DependencyPropertyService
         var ownerType = ExtractType(ownerTypeExpression);
 
         var metadataInfo = MetadataInfo.Create(arguments.Count >= 4 ? arguments[3].Expression : null, semanticModel);
-        var validateLambda = CreateValidateLambda(arguments.Count >= 5 ? arguments[4].Expression : null, semanticModel);
+        var rawValidateExpression = arguments.Count >= 5 ? arguments[4].Expression : null;
+        var validateExpression = CreateValidateExpression(rawValidateExpression, semanticModel, propertyType);
+        var coerceExpression = metadataInfo.CoerceValueCallback != null
+            ? CreateCoerceLambda(metadataInfo.CoerceValueCallback, propertyType)
+            : null;
+        var validateMethodName = GetMethodName(rawValidateExpression);
+        var coerceMethodName = GetMethodName(metadataInfo.CoerceValueCallback);
 
         var newFieldType = CreateStyledPropertyType(propertyType);
         var registerCall = CreateRegisterInvocation(
@@ -49,7 +55,8 @@ public static class DependencyPropertyService
             propertyType,
             ownerType,
             metadataInfo,
-            validateLambda);
+            validateExpression,
+            coerceExpression);
 
         var newVariable = fieldVariable.WithInitializer(SyntaxFactory.EqualsValueClause(registerCall));
         var newVariableDeclaration = fieldDeclaration.Declaration
@@ -105,6 +112,18 @@ public static class DependencyPropertyService
             }
 
             updatedRoot = BaseClassService.UpdateWpfBaseClassToAvalonia(updatedRoot);
+            updatedClass = FindMatchingClass(updatedRoot, containingClass);
+        }
+
+        if (!string.IsNullOrEmpty(validateMethodName) && updatedClass != null)
+        {
+            updatedRoot = UpdateValidateMethodSignature(updatedRoot, updatedClass, validateMethodName!, propertyType);
+            updatedClass = FindMatchingClass(updatedRoot, containingClass);
+        }
+
+        if (!string.IsNullOrEmpty(coerceMethodName) && updatedClass != null)
+        {
+            updatedRoot = UpdateCoerceMethodSignature(updatedRoot, updatedClass, coerceMethodName!, propertyType);
         }
 
         return updatedRoot;
@@ -157,7 +176,8 @@ public static class DependencyPropertyService
         TypeSyntax? propertyType,
         TypeSyntax? ownerType,
         MetadataInfo metadataInfo,
-        ExpressionSyntax? validateLambda)
+        ExpressionSyntax? validateExpression,
+        ExpressionSyntax? coerceExpression)
     {
         SimpleNameSyntax memberName;
 
@@ -214,13 +234,22 @@ public static class DependencyPropertyService
                     bindingModeExpression));
         }
 
-        if (validateLambda != null)
+        if (validateExpression != null)
         {
             arguments.Add(
                 SyntaxFactory.Argument(
                     SyntaxFactory.NameColon("validate"),
                     default,
-                    validateLambda));
+                    validateExpression));
+        }
+
+        if (coerceExpression != null)
+        {
+            arguments.Add(
+                SyntaxFactory.Argument(
+                    SyntaxFactory.NameColon("coerce"),
+                    default,
+                    coerceExpression));
         }
 
         return SyntaxFactory.InvocationExpression(
@@ -247,6 +276,11 @@ public static class DependencyPropertyService
             statements.Add(CreateAffectsStatement("AffectsArrange", ownerType, propertyIdentifier));
         }
 
+        if (metadataInfo.AffectsRender)
+        {
+            statements.Add(CreateAffectsStatement("AffectsRender", ownerType, propertyIdentifier));
+        }
+
         return statements;
     }
 
@@ -270,7 +304,7 @@ public static class DependencyPropertyService
         return SyntaxFactory.ExpressionStatement(invocation);
     }
 
-    private static ExpressionSyntax? CreateValidateLambda(ExpressionSyntax? expression, SemanticModel? semanticModel)
+    private static ExpressionSyntax? CreateValidateExpression(ExpressionSyntax? expression, SemanticModel? semanticModel, TypeSyntax? propertyType)
     {
         if (expression == null)
             return null;
@@ -294,24 +328,98 @@ public static class DependencyPropertyService
         if (callback is LiteralExpressionSyntax literal && literal.IsKind(SyntaxKind.NullLiteralExpression))
             return null;
 
-        return NormalizeValidateCallback(callback);
+        return callback switch
+        {
+            SimpleLambdaExpressionSyntax simple => NormalizeValidateLambda(simple, propertyType),
+            ParenthesizedLambdaExpressionSyntax parenthesized => NormalizeValidateLambda(parenthesized, propertyType),
+            IdentifierNameSyntax or MemberAccessExpressionSyntax => callback.WithoutTrivia(),
+            _ => CreateValidateLambdaFromExpression(callback, propertyType)
+        };
     }
 
-    private static ExpressionSyntax NormalizeValidateCallback(ExpressionSyntax expression) =>
-        expression switch
+    private static ExpressionSyntax NormalizeValidateLambda(SimpleLambdaExpressionSyntax lambda, TypeSyntax? propertyType)
+    {
+        if (propertyType == null)
+            return lambda;
+
+        if (lambda.Parameter.Type != null)
+            return lambda;
+
+        return lambda.WithParameter(lambda.Parameter.WithType(propertyType.WithoutTrivia()));
+    }
+
+    private static ExpressionSyntax NormalizeValidateLambda(ParenthesizedLambdaExpressionSyntax lambda, TypeSyntax? propertyType)
+    {
+        if (propertyType == null)
+            return lambda;
+
+        if (lambda.ParameterList.Parameters.Count == 0)
+            return lambda;
+
+        var first = lambda.ParameterList.Parameters[0];
+        if (first.Type != null)
+            return lambda;
+
+        var updatedFirst = first.WithType(propertyType.WithoutTrivia());
+        var parameters = lambda.ParameterList.Parameters.Replace(first, updatedFirst);
+        return lambda.WithParameterList(lambda.ParameterList.WithParameters(parameters));
+    }
+
+    private static ExpressionSyntax CreateValidateLambdaFromExpression(ExpressionSyntax expression, TypeSyntax? propertyType)
+    {
+        var parameter = SyntaxFactory.Parameter(SyntaxFactory.Identifier("value"));
+        if (propertyType != null)
         {
-            SimpleLambdaExpressionSyntax => expression,
-            ParenthesizedLambdaExpressionSyntax => expression,
-            _ => SyntaxFactory.SimpleLambdaExpression(
-                    SyntaxFactory.Parameter(SyntaxFactory.Identifier("value")),
-                    SyntaxFactory.InvocationExpression(
-                        expression.WithoutTrivia(),
-                        SyntaxFactory.ArgumentList(
-                            SyntaxFactory.SingletonSeparatedList(
-                                SyntaxFactory.Argument(SyntaxFactory.IdentifierName("value"))))))
-                .WithLeadingTrivia(expression.GetLeadingTrivia())
-                .WithTrailingTrivia(expression.GetTrailingTrivia())
-        };
+            parameter = parameter.WithType(propertyType.WithoutTrivia());
+        }
+
+        return SyntaxFactory.SimpleLambdaExpression(
+                parameter,
+                SyntaxFactory.InvocationExpression(
+                    expression.WithoutTrivia(),
+                    SyntaxFactory.ArgumentList(
+                        SyntaxFactory.SingletonSeparatedList(
+                            SyntaxFactory.Argument(SyntaxFactory.IdentifierName("value"))))))
+            .WithLeadingTrivia(expression.GetLeadingTrivia())
+            .WithTrailingTrivia(expression.GetTrailingTrivia());
+    }
+
+    private static ExpressionSyntax CreateCoerceLambda(ExpressionSyntax expression, TypeSyntax? propertyType)
+    {
+        var callback = UnwrapDelegate(expression);
+
+        if (callback is IdentifierNameSyntax or MemberAccessExpressionSyntax)
+        {
+            return callback.WithoutTrivia();
+        }
+
+        var senderParameter = SyntaxFactory.Parameter(SyntaxFactory.Identifier("sender"))
+            .WithType(SyntaxFactory.IdentifierName("AvaloniaObject"));
+
+        var valueParameter = SyntaxFactory.Parameter(SyntaxFactory.Identifier("value"));
+        if (propertyType != null)
+        {
+            valueParameter = valueParameter.WithType(propertyType.WithoutTrivia());
+        }
+
+        var invocation = SyntaxFactory.InvocationExpression(
+            callback.WithoutTrivia(),
+            SyntaxFactory.ArgumentList(
+                SyntaxFactory.SeparatedList(new[]
+                {
+                    SyntaxFactory.Argument(SyntaxFactory.IdentifierName("sender")),
+                    SyntaxFactory.Argument(SyntaxFactory.IdentifierName("value"))
+                })));
+
+        ExpressionSyntax body = propertyType != null
+            ? SyntaxFactory.CastExpression(propertyType.WithoutTrivia(), invocation)
+            : invocation;
+
+        return SyntaxFactory.ParenthesizedLambdaExpression(body)
+            .WithParameterList(
+                SyntaxFactory.ParameterList(
+                    SyntaxFactory.SeparatedList(new[] { senderParameter, valueParameter })));
+    }
 
     private static ExpressionSyntax UnwrapDelegate(ExpressionSyntax expression)
     {
@@ -322,6 +430,100 @@ public static class DependencyPropertyService
         }
 
         return expression;
+    }
+
+    private static string? GetMethodName(ExpressionSyntax? expression)
+    {
+        if (expression == null)
+            return null;
+
+        var unwrapped = UnwrapDelegate(expression);
+
+        return unwrapped switch
+        {
+            IdentifierNameSyntax identifier => identifier.Identifier.Text,
+            MemberAccessExpressionSyntax memberAccess => memberAccess.Name.Identifier.Text,
+            _ => null
+        };
+    }
+
+    private static SyntaxNode UpdateValidateMethodSignature(
+        SyntaxNode root,
+        ClassDeclarationSyntax classDeclaration,
+        string methodName,
+        TypeSyntax? propertyType)
+    {
+        if (propertyType == null)
+            return root;
+
+        var method = classDeclaration.Members
+            .OfType<MethodDeclarationSyntax>()
+            .FirstOrDefault(m => string.Equals(m.Identifier.Text, methodName, StringComparison.Ordinal));
+
+        if (method == null)
+            return root;
+
+        if (method.ParameterList.Parameters.Count != 1)
+            return root;
+
+        var parameter = method.ParameterList.Parameters[0];
+        var parameterType = propertyType.WithoutTrivia()
+            .WithLeadingTrivia(parameter.Type?.GetLeadingTrivia() ?? default)
+            .WithTrailingTrivia(parameter.Type?.GetTrailingTrivia() ?? default);
+
+        var updatedParameter = parameter.WithType(parameterType);
+        var updatedMethod = method.WithParameterList(
+            method.ParameterList.WithParameters(
+                SyntaxFactory.SingletonSeparatedList(updatedParameter)));
+
+        return root.ReplaceNode(method, updatedMethod);
+    }
+
+    private static SyntaxNode UpdateCoerceMethodSignature(
+        SyntaxNode root,
+        ClassDeclarationSyntax classDeclaration,
+        string methodName,
+        TypeSyntax? propertyType)
+    {
+        if (propertyType == null)
+            return root;
+
+        var method = classDeclaration.Members
+            .OfType<MethodDeclarationSyntax>()
+            .FirstOrDefault(m => string.Equals(m.Identifier.Text, methodName, StringComparison.Ordinal));
+
+        if (method == null)
+            return root;
+
+        if (method.ParameterList.Parameters.Count != 2)
+            return root;
+
+        var parameters = method.ParameterList.Parameters;
+        var ownerParameter = parameters[0];
+        var valueParameter = parameters[1];
+
+        var avaloniaObjectType = SyntaxFactory.IdentifierName("AvaloniaObject")
+            .WithLeadingTrivia(ownerParameter.Type?.GetLeadingTrivia() ?? default)
+            .WithTrailingTrivia(ownerParameter.Type?.GetTrailingTrivia() ?? default);
+
+        var propertyTypeWithTrivia = propertyType.WithoutTrivia()
+            .WithLeadingTrivia(valueParameter.Type?.GetLeadingTrivia() ?? default)
+            .WithTrailingTrivia(valueParameter.Type?.GetTrailingTrivia() ?? default);
+
+        var updatedOwnerParameter = ownerParameter.WithType(avaloniaObjectType);
+        var updatedValueParameter = valueParameter.WithType(propertyTypeWithTrivia);
+
+        var updatedParameters = SyntaxFactory.SeparatedList(new[] { updatedOwnerParameter, updatedValueParameter });
+
+        var returnType = propertyType.WithoutTrivia()
+            .WithLeadingTrivia(method.ReturnType.GetLeadingTrivia())
+            .WithTrailingTrivia(method.ReturnType.GetTrailingTrivia());
+
+        var updatedMethod = method
+            .WithReturnType(returnType)
+            .WithParameterList(method.ParameterList.WithParameters(updatedParameters));
+
+        return root.ReplaceNode(method, updatedMethod);
     }
 
     private static ClassDeclarationSyntax? FindMatchingClass(SyntaxNode root, ClassDeclarationSyntax originalClass)
@@ -412,6 +614,11 @@ public static class DependencyPropertyService
         typeSymbol.Name == "FrameworkPropertyMetadataOptions" &&
         typeSymbol.ContainingNamespace?.ToDisplayString() == "System.Windows";
 
+    private static bool IsCoerceValueCallbackType(ITypeSymbol? typeSymbol) =>
+        typeSymbol != null &&
+        typeSymbol.Name == "CoerceValueCallback" &&
+        typeSymbol.ContainingNamespace?.ToDisplayString() == "System.Windows";
+
     private sealed class MetadataInfo
     {
         public bool HasMetadata { get; set; }
@@ -419,11 +626,13 @@ public static class DependencyPropertyService
         public ExpressionSyntax? PropertyChangedCallback { get; set; }
         public bool AffectsMeasure { get; set; }
         public bool AffectsArrange { get; set; }
+        public bool AffectsRender { get; set; }
         public bool Inherits { get; set; }
         public bool BindsTwoWayByDefault { get; set; }
+        public ExpressionSyntax? CoerceValueCallback { get; set; }
 
         public bool RequiresBindingModeUsing => BindsTwoWayByDefault;
-        public bool HasLayoutStatements => AffectsMeasure || AffectsArrange;
+        public bool HasLayoutStatements => AffectsMeasure || AffectsArrange || AffectsRender;
 
         public static MetadataInfo Empty { get; } = new();
 
@@ -463,6 +672,12 @@ public static class DependencyPropertyService
                     continue;
                 }
 
+                if (IsCoerceValueCallbackType(convertedType))
+                {
+                    info.CoerceValueCallback ??= UnwrapDelegate(expression);
+                    continue;
+                }
+
                 if (info.DefaultValue == null)
                 {
                     info.DefaultValue = expression;
@@ -473,6 +688,13 @@ public static class DependencyPropertyService
                     (expression is IdentifierNameSyntax || expression is MemberAccessExpressionSyntax))
                 {
                     info.PropertyChangedCallback = UnwrapDelegate(expression);
+                    continue;
+                }
+
+                if (info.CoerceValueCallback == null &&
+                    (expression is IdentifierNameSyntax || expression is MemberAccessExpressionSyntax))
+                {
+                    info.CoerceValueCallback = UnwrapDelegate(expression);
                 }
             }
 
@@ -497,6 +719,9 @@ public static class DependencyPropertyService
                     case "AffectsArrange":
                         info.AffectsArrange = true;
                         break;
+                    case "AffectsRender":
+                        info.AffectsRender = true;
+                        break;
                     case "Inherits":
                         info.Inherits = true;
                         break;
@@ -512,6 +737,7 @@ public static class DependencyPropertyService
     {
         (0x001, "AffectsMeasure"),
         (0x002, "AffectsArrange"),
+        (0x010, "AffectsRender"),
         (0x020, "Inherits"),
         (0x100, "BindsTwoWayByDefault"),
     };

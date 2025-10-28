@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Immutable;
 using System.Linq;
 using System.Threading;
@@ -74,6 +75,12 @@ public sealed class WpfToAvaloniaFileAnalyzer : DiagnosticAnalyzer
             {
                 return attachedLocation;
             }
+
+            var routedEventLocation = GetRoutedEventFieldLocation(field, semanticModel, cancellationToken);
+            if (routedEventLocation != null)
+            {
+                return routedEventLocation;
+            }
         }
 
         foreach (var classDeclaration in root.DescendantNodes().OfType<ClassDeclarationSyntax>())
@@ -107,12 +114,116 @@ public sealed class WpfToAvaloniaFileAnalyzer : DiagnosticAnalyzer
             }
         }
 
+        foreach (var eventDeclaration in root.DescendantNodes().OfType<EventDeclarationSyntax>())
+        {
+            if (IsWpfRoutedEventAccessor(eventDeclaration, semanticModel, cancellationToken))
+            {
+                return eventDeclaration.Identifier.GetLocation();
+            }
+        }
+
+        foreach (var invocation in root.DescendantNodes().OfType<InvocationExpressionSyntax>())
+        {
+            var location = GetRoutedEventInvocationLocation(invocation, semanticModel, cancellationToken);
+            if (location != null)
+            {
+                return location;
+            }
+        }
+
         foreach (var attribute in root.DescendantNodes().OfType<AttributeSyntax>())
         {
             if (IsCommonDependencyPropertyAttribute(attribute))
             {
                 return attribute.GetLocation();
             }
+        }
+
+        return null;
+    }
+
+    private static Location? GetRoutedEventFieldLocation(
+        FieldDeclarationSyntax fieldDeclaration,
+        SemanticModel semanticModel,
+        CancellationToken cancellationToken)
+    {
+        if (!fieldDeclaration.Modifiers.Any(SyntaxKind.StaticKeyword) ||
+            !fieldDeclaration.Modifiers.Any(SyntaxKind.ReadOnlyKeyword))
+        {
+            return null;
+        }
+
+        var declaration = fieldDeclaration.Declaration;
+        var typeInfo = semanticModel.GetTypeInfo(declaration.Type, cancellationToken);
+        if (typeInfo.Type?.Name != "RoutedEvent" ||
+            typeInfo.Type.ContainingNamespace?.ToDisplayString() != "System.Windows")
+        {
+            return null;
+        }
+
+        foreach (var variable in declaration.Variables)
+        {
+            if (variable.Initializer?.Value is InvocationExpressionSyntax invocation)
+            {
+                var symbolInfo = semanticModel.GetSymbolInfo(invocation, cancellationToken);
+                if (symbolInfo.Symbol is IMethodSymbol methodSymbol &&
+                    methodSymbol.Name == "RegisterRoutedEvent" &&
+                    methodSymbol.ContainingType?.Name == "EventManager")
+                {
+                    return variable.Identifier.GetLocation();
+                }
+            }
+        }
+
+        return null;
+    }
+
+    private static bool IsWpfRoutedEventAccessor(
+        EventDeclarationSyntax eventDeclaration,
+        SemanticModel semanticModel,
+        CancellationToken cancellationToken)
+    {
+        var typeInfo = semanticModel.GetTypeInfo(eventDeclaration.Type, cancellationToken);
+        if (typeInfo.Type is not INamedTypeSymbol eventTypeSymbol)
+            return false;
+
+        if (!string.Equals(eventTypeSymbol.Name, "RoutedEventHandler", StringComparison.Ordinal))
+            return false;
+
+        var addAccessor = eventDeclaration.AccessorList?.Accessors
+            .FirstOrDefault(a => a.IsKind(SyntaxKind.AddAccessorDeclaration));
+
+        if (addAccessor?.ExpressionBody?.Expression is not InvocationExpressionSyntax addInvocation)
+            return false;
+
+        var addSymbol = semanticModel.GetSymbolInfo(addInvocation, cancellationToken).Symbol as IMethodSymbol;
+        return addSymbol != null &&
+               string.Equals(addSymbol.Name, "AddHandler", StringComparison.Ordinal) &&
+               addSymbol.ContainingType?.ContainingNamespace?.ToDisplayString() == "System.Windows";
+    }
+
+    private static Location? GetRoutedEventInvocationLocation(
+        InvocationExpressionSyntax invocation,
+        SemanticModel semanticModel,
+        CancellationToken cancellationToken)
+    {
+        var symbol = semanticModel.GetSymbolInfo(invocation, cancellationToken).Symbol as IMethodSymbol;
+        if (symbol == null)
+            return null;
+
+        var namespaceName = symbol.ContainingType?.ContainingNamespace?.ToDisplayString();
+        if (namespaceName == null || !namespaceName.StartsWith("System.Windows", StringComparison.Ordinal))
+            return null;
+
+        if (symbol.Name is "RegisterClassHandler" or "AddHandler" or "RemoveHandler" or "RaiseEvent")
+        {
+            return invocation.GetLocation();
+        }
+
+        if (symbol.Name == "AddOwner" &&
+            symbol.ContainingType?.Name == "RoutedEvent")
+        {
+            return invocation.GetLocation();
         }
 
         return null;
