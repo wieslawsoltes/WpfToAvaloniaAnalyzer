@@ -10,8 +10,16 @@ public class CliIntegrationTests
     public void FixAllMode_AppliesRoutedEventDiagnostics()
     {
         var repoRoot = FindRepositoryRoot();
-        var projectPath = Path.Combine(repoRoot, "WpfToAvaloniaAnalyzers.Sample.Wpf", "WpfToAvaloniaAnalyzers.Sample.Wpf.csproj");
-        var sourcePath = Path.Combine(repoRoot, "WpfToAvaloniaAnalyzers.Sample.Wpf", "Samples", "RoutedEventSamples.cs");
+        var sampleRoot = Path.Combine(repoRoot, "samples", "WpfToAvaloniaAnalyzers.Sample.Wpf");
+        if (!Directory.Exists(sampleRoot))
+        {
+            throw new InvalidOperationException($"Could not locate sample project at '{sampleRoot}'.");
+        }
+
+        var projectPath = Path.Combine(sampleRoot, "WpfToAvaloniaAnalyzers.Sample.Wpf.csproj");
+        var sourcePath = Path.Combine(sampleRoot, "Samples", "RoutedEventSamples.cs");
+
+        Directory.CreateDirectory(Path.GetDirectoryName(sourcePath)!);
 
         var originalContent = File.Exists(sourcePath)
             ? File.ReadAllText(sourcePath)
@@ -22,9 +30,9 @@ public class CliIntegrationTests
         try
         {
             RunDotnet(repoRoot, "restore", projectPath);
-            RunDotnet(repoRoot, "build", Path.Combine(repoRoot, "WpfToAvaloniaAnalyzers.Cli", "WpfToAvaloniaAnalyzers.Cli.csproj"));
+            var cliProject = Path.Combine(repoRoot, "src", "WpfToAvaloniaAnalyzers.Cli", "WpfToAvaloniaAnalyzers.Cli.csproj");
+            RunDotnet(repoRoot, "build", cliProject);
 
-            var cliProject = Path.Combine(repoRoot, "WpfToAvaloniaAnalyzers.Cli", "WpfToAvaloniaAnalyzers.Cli.csproj");
             var output = RunDotnet(
                 repoRoot,
                 "run",
