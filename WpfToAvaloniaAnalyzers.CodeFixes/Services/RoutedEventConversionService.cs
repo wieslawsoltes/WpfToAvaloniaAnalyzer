@@ -191,13 +191,13 @@ public static class RoutedEventConversionService
         var replacements = new Dictionary<SyntaxNode, SyntaxNode>();
 
         var handlerMethods = GetHandlerMethodSymbols(handlerExpression, semanticModel);
+        var processedHandlerMethods = new HashSet<MethodDeclarationSyntax>();
+        var handlerProcessingQueue = new List<(MethodDeclarationSyntax MethodSyntax, ITypeSymbol? EventArgsSymbol, string? ParameterTypeText)>();
+
         foreach (var handlerMethod in handlerMethods)
         {
             if (handlerMethod.Parameters.Length < 2)
                 continue;
-
-            var originalEventArgsSymbol = handlerMethod.Parameters[1].Type;
-            var mappedEventArgsType = RoutedEventHelper.MapEventArgsType(originalEventArgsSymbol);
 
             foreach (var syntaxReference in handlerMethod.DeclaringSyntaxReferences)
             {
@@ -207,25 +207,70 @@ public static class RoutedEventConversionService
                 if (root.FindNode(methodDeclaration.Span) is not MethodDeclarationSyntax rootMethodDeclaration)
                     continue;
 
-                var updatedMethod = UpdateHandlerMethodParameters(
-                    rootMethodDeclaration,
-                    originalEventArgsSymbol,
-                    mappedEventArgsType,
-                    semanticModel);
+                if (!processedHandlerMethods.Add(rootMethodDeclaration))
+                    continue;
 
-                updatedMethod = ApplyRoutedEventSignature(updatedMethod, mappedEventArgsType);
+                var originalEventArgsSymbol = handlerMethod.OriginalDefinition.Parameters.Length > 1
+                    ? handlerMethod.OriginalDefinition.Parameters[1].Type
+                    : handlerMethod.Parameters[1].Type;
 
-                if (!ReferenceEquals(rootMethodDeclaration, updatedMethod))
+                string? parameterTypeText = null;
+
+                if (methodDeclaration.ParameterList.Parameters.Count > 1 &&
+                    methodDeclaration.ParameterList.Parameters[1].Type is TypeSyntax parameterTypeSyntax)
                 {
-                    replacements[rootMethodDeclaration] = updatedMethod;
+                    var parameterTypeInfo = semanticModel.GetTypeInfo(parameterTypeSyntax);
+                    originalEventArgsSymbol = parameterTypeInfo.Type ?? parameterTypeInfo.ConvertedType ?? originalEventArgsSymbol;
+                    parameterTypeText = parameterTypeSyntax.ToString();
                 }
-                else
+
+                handlerProcessingQueue.Add((rootMethodDeclaration, originalEventArgsSymbol, parameterTypeText));
+            }
+        }
+
+        if (handlerProcessingQueue.Count == 0)
+        {
+            foreach (var methodSyntax in FindHandlerMethodDeclarations(root, handlerExpression))
+            {
+                if (!processedHandlerMethods.Add(methodSyntax))
+                    continue;
+
+                string? parameterTypeText = null;
+                if (methodSyntax.ParameterList.Parameters.Count > 1 && methodSyntax.ParameterList.Parameters[1].Type != null)
                 {
-                    var fallbackMethod = ApplyRoutedEventSignature(rootMethodDeclaration, mappedEventArgsType);
-                    if (!ReferenceEquals(rootMethodDeclaration, fallbackMethod))
-                    {
-                        replacements[rootMethodDeclaration] = fallbackMethod;
-                    }
+                    parameterTypeText = methodSyntax.ParameterList.Parameters[1].Type!.ToString();
+                }
+
+                handlerProcessingQueue.Add((methodSyntax, null, parameterTypeText));
+            }
+        }
+
+        foreach (var (methodSyntax, originalEventArgsSymbol, parameterTypeText) in handlerProcessingQueue)
+        {
+            var mappedEventArgsType = originalEventArgsSymbol != null
+                ? RoutedEventHelper.MapEventArgsType(originalEventArgsSymbol, parameterTypeText)
+                : RoutedEventHelper.MapEventArgsTypeFromText(parameterTypeText) ?? SyntaxFactory.ParseTypeName("global::Avalonia.Interactivity.RoutedEventArgs");
+
+            var updatedMethod = UpdateHandlerMethodParameters(
+                methodSyntax,
+                originalEventArgsSymbol,
+                mappedEventArgsType,
+                semanticModel,
+                parameterTypeText);
+
+            updatedMethod = ApplyRoutedEventSignature(updatedMethod, mappedEventArgsType);
+            updatedMethod = EnsureEventArgsParameterType(updatedMethod, mappedEventArgsType);
+
+            if (!ReferenceEquals(methodSyntax, updatedMethod))
+            {
+                replacements[methodSyntax] = updatedMethod;
+            }
+            else
+            {
+                var fallbackMethod = ApplyRoutedEventSignature(methodSyntax, mappedEventArgsType);
+                if (!ReferenceEquals(methodSyntax, fallbackMethod))
+                {
+                    replacements[methodSyntax] = fallbackMethod;
                 }
             }
         }
@@ -319,38 +364,83 @@ public static class RoutedEventConversionService
             }
         }
 
+        var processedInstanceMethods = new HashSet<MethodDeclarationSyntax>();
+        var instanceProcessingQueue = new List<(MethodDeclarationSyntax MethodSyntax, ITypeSymbol? EventArgsSymbol, string? ParameterTypeText)>();
+
         foreach (var handlerSymbol in handlerSymbolSet)
         {
             if (handlerSymbol.Parameters.Length < 2)
                 continue;
-
-            var originalEventArgsSymbol = handlerSymbol.Parameters[1].Type;
-            var mappedEventArgsType = RoutedEventHelper.MapEventArgsType(originalEventArgsSymbol);
 
             foreach (var syntaxReference in handlerSymbol.DeclaringSyntaxReferences)
             {
                 if (root.FindNode(syntaxReference.Span) is not MethodDeclarationSyntax methodDeclaration)
                     continue;
 
-                var updatedMethod = UpdateHandlerMethodParameters(
-                    methodDeclaration,
-                    originalEventArgsSymbol,
-                    mappedEventArgsType,
-                    semanticModel);
+                if (!processedInstanceMethods.Add(methodDeclaration))
+                    continue;
 
-                updatedMethod = ApplyRoutedEventSignature(updatedMethod, mappedEventArgsType);
+                var originalEventArgsSymbol = handlerSymbol.OriginalDefinition.Parameters.Length > 1
+                    ? handlerSymbol.OriginalDefinition.Parameters[1].Type
+                    : handlerSymbol.Parameters[1].Type;
 
-                if (!ReferenceEquals(methodDeclaration, updatedMethod))
+                string? parameterTypeText = null;
+
+                if (methodDeclaration.ParameterList.Parameters.Count > 1 &&
+                    methodDeclaration.ParameterList.Parameters[1].Type is TypeSyntax parameterTypeSyntax)
                 {
-                    replacements[methodDeclaration] = updatedMethod;
+                    var parameterTypeInfo = semanticModel.GetTypeInfo(parameterTypeSyntax);
+                    originalEventArgsSymbol = parameterTypeInfo.Type ?? parameterTypeInfo.ConvertedType ?? originalEventArgsSymbol;
+                    parameterTypeText = parameterTypeSyntax.ToString();
                 }
-                else
+
+                instanceProcessingQueue.Add((methodDeclaration, originalEventArgsSymbol, parameterTypeText));
+            }
+        }
+
+        if (instanceProcessingQueue.Count == 0)
+        {
+            foreach (var methodSyntax in FindHandlerMethodDeclarations(root, handlerArgument.Expression))
+            {
+                if (!processedInstanceMethods.Add(methodSyntax))
+                    continue;
+
+                string? parameterTypeText = null;
+                if (methodSyntax.ParameterList.Parameters.Count > 1 && methodSyntax.ParameterList.Parameters[1].Type != null)
                 {
-                    var fallbackMethod = ApplyRoutedEventSignature(methodDeclaration, mappedEventArgsType);
-                    if (!ReferenceEquals(methodDeclaration, fallbackMethod))
-                    {
-                        replacements[methodDeclaration] = fallbackMethod;
-                    }
+                    parameterTypeText = methodSyntax.ParameterList.Parameters[1].Type!.ToString();
+                }
+
+                instanceProcessingQueue.Add((methodSyntax, null, parameterTypeText));
+            }
+        }
+
+        foreach (var (methodDeclaration, originalEventArgsSymbol, parameterTypeText) in instanceProcessingQueue)
+        {
+            var mappedEventArgsType = originalEventArgsSymbol != null
+                ? RoutedEventHelper.MapEventArgsType(originalEventArgsSymbol, parameterTypeText)
+                : RoutedEventHelper.MapEventArgsTypeFromText(parameterTypeText) ?? SyntaxFactory.ParseTypeName("global::Avalonia.Interactivity.RoutedEventArgs");
+
+            var updatedMethod = UpdateHandlerMethodParameters(
+                methodDeclaration,
+                originalEventArgsSymbol,
+                mappedEventArgsType,
+                semanticModel,
+                parameterTypeText);
+
+            updatedMethod = ApplyRoutedEventSignature(updatedMethod, mappedEventArgsType);
+            updatedMethod = EnsureEventArgsParameterType(updatedMethod, mappedEventArgsType);
+
+            if (!ReferenceEquals(methodDeclaration, updatedMethod))
+            {
+                replacements[methodDeclaration] = updatedMethod;
+            }
+            else
+            {
+                var fallbackMethod = ApplyRoutedEventSignature(methodDeclaration, mappedEventArgsType);
+                if (!ReferenceEquals(methodDeclaration, fallbackMethod))
+                {
+                    replacements[methodDeclaration] = fallbackMethod;
                 }
             }
         }
@@ -399,14 +489,32 @@ public static class RoutedEventConversionService
         }
 
         var updatedInvocation = invocation.ReplaceNode(objectCreation, updatedObjectCreation);
-        var updatedExpression = RewriteRaiseEventTarget(invocation.Expression);
 
+        if (invocation.Parent is ConditionalAccessExpressionSyntax conditionalParent)
+        {
+            var updatedConditional = conditionalParent;
+            var updatedTarget = RewriteRaiseEventTarget(conditionalParent.Expression);
+            if (!ReferenceEquals(updatedTarget, conditionalParent.Expression))
+            {
+                updatedConditional = updatedConditional.WithExpression(updatedTarget);
+            }
+
+            var invocationWithTrivia = updatedInvocation.WithTriviaFrom(invocation);
+            if (!ReferenceEquals(invocationWithTrivia, conditionalParent.WhenNotNull))
+            {
+                updatedConditional = updatedConditional.WithWhenNotNull(invocationWithTrivia);
+            }
+
+            return root.ReplaceNode(conditionalParent, updatedConditional.WithTriviaFrom(conditionalParent));
+        }
+
+        var updatedExpression = RewriteRaiseEventTarget(invocation.Expression);
         if (!ReferenceEquals(updatedExpression, invocation.Expression))
         {
             updatedInvocation = updatedInvocation.WithExpression(updatedExpression);
         }
 
-        return root.ReplaceNode(invocation, updatedInvocation);
+        return root.ReplaceNode(invocation, updatedInvocation.WithTriviaFrom(invocation));
     }
 
     private static ExpressionSyntax RewriteRaiseEventTarget(ExpressionSyntax expression)
@@ -511,7 +619,8 @@ public static class RoutedEventConversionService
         MethodDeclarationSyntax method,
         ITypeSymbol? originalEventArgsSymbol,
         TypeSyntax updatedEventArgsType,
-        SemanticModel semanticModel)
+        SemanticModel semanticModel,
+        string? originalEventArgsText = null)
     {
         var parameters = method.ParameterList.Parameters;
         if (parameters.Count == 0)
@@ -531,6 +640,7 @@ public static class RoutedEventConversionService
 
             var parameterTypeInfo = semanticModel.GetTypeInfo(parameter.Type);
             var parameterType = parameterTypeInfo.Type ?? parameterTypeInfo.ConvertedType;
+            var parameterTypeText = parameter.Type.ToString();
 
             if (index == 0)
             {
@@ -547,7 +657,22 @@ public static class RoutedEventConversionService
                 }
             }
 
-            if (IsEventArgsParameterMatch(parameterType, parameter.Type, originalEventArgsSymbol, index))
+            if (index == 1)
+            {
+                var mappedFromText = RoutedEventHelper.MapEventArgsTypeFromText(parameterTypeText);
+                if (mappedFromText != null)
+                {
+                    var replacementType = mappedFromText.WithTriviaFrom(parameter.Type);
+                    if (!SyntaxFactory.AreEquivalent(parameter.Type, replacementType))
+                    {
+                        updatedParameters.Add(parameter.WithType(replacementType));
+                        changed = true;
+                        continue;
+                    }
+                }
+            }
+
+            if (IsEventArgsParameterMatch(parameterType, parameter.Type, originalEventArgsSymbol, index, originalEventArgsText))
             {
                 var replacementType = updatedEventArgsType.WithTriviaFrom(parameter.Type);
                 if (!SyntaxFactory.AreEquivalent(parameter.Type, replacementType))
@@ -568,11 +693,35 @@ public static class RoutedEventConversionService
             method.ParameterList.WithParameters(SyntaxFactory.SeparatedList(updatedParameters)));
     }
 
+    private static MethodDeclarationSyntax EnsureEventArgsParameterType(MethodDeclarationSyntax method, TypeSyntax eventArgsType)
+    {
+        var parameters = method.ParameterList.Parameters;
+        if (parameters.Count > 1 && parameters[1].Type != null)
+        {
+            var currentTypeText = parameters[1].Type!.ToString();
+            var eventArgsText = eventArgsType.ToString();
+            var eventArgsIsGeneric = eventArgsText.IndexOf("Avalonia.Interactivity.RoutedEventArgs", StringComparison.Ordinal) >= 0;
+            var currentIsInput = currentTypeText.IndexOf("Avalonia.Input.", StringComparison.Ordinal) >= 0;
+
+            if (!(eventArgsIsGeneric && currentIsInput))
+            {
+                var desiredType = eventArgsType.WithTriviaFrom(parameters[1].Type!);
+                if (!SyntaxFactory.AreEquivalent(parameters[1].Type, desiredType))
+                {
+                    method = method.ReplaceNode(parameters[1].Type!, desiredType);
+                }
+            }
+        }
+
+        return method;
+    }
+
     private static bool IsEventArgsParameterMatch(
         ITypeSymbol? parameterTypeSymbol,
         TypeSyntax parameterTypeSyntax,
         ITypeSymbol? originalEventArgsSymbol,
-        int parameterIndex)
+        int parameterIndex,
+        string? originalEventArgsText)
     {
         if (originalEventArgsSymbol == null)
             return parameterIndex == 1;
@@ -586,10 +735,25 @@ public static class RoutedEventConversionService
         var parameterTypeText = parameterTypeSyntax.ToString();
         var fullyQualifiedOriginal = originalEventArgsSymbol.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
 
-        return string.Equals(parameterTypeText, fullyQualifiedOriginal, StringComparison.Ordinal) ||
-               string.Equals(parameterTypeText, originalEventArgsSymbol.ToDisplayString(), StringComparison.Ordinal) ||
-               string.Equals(parameterTypeText, originalEventArgsSymbol.Name, StringComparison.Ordinal) ||
-               (parameterIndex == 1 && string.Equals(parameterTypeText, originalEventArgsSymbol.Name, StringComparison.Ordinal));
+        if (string.Equals(parameterTypeText, fullyQualifiedOriginal, StringComparison.Ordinal) ||
+            string.Equals(parameterTypeText, originalEventArgsSymbol.ToDisplayString(), StringComparison.Ordinal) ||
+            string.Equals(parameterTypeText, originalEventArgsSymbol.Name, StringComparison.Ordinal) ||
+            (parameterIndex == 1 && string.Equals(parameterTypeText, originalEventArgsSymbol.Name, StringComparison.Ordinal)))
+        {
+            return true;
+        }
+
+        if (!string.IsNullOrWhiteSpace(originalEventArgsText))
+        {
+            var normalizedParameter = NormalizeTypeName(parameterTypeSyntax.ToString());
+            var normalizedOriginal = NormalizeTypeName(originalEventArgsText);
+            if (string.Equals(normalizedParameter, normalizedOriginal, StringComparison.Ordinal))
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private static TypeSyntax? MapSenderParameterType(ITypeSymbol? senderType, TypeSyntax parameterTypeSyntax, ITypeSymbol? originalEventArgsSymbol)
@@ -605,6 +769,11 @@ public static class RoutedEventConversionService
     {
         if (senderType == null)
             return null;
+
+        if (IsInputEventArgs(originalEventArgsSymbol))
+        {
+            return SyntaxFactory.ParseTypeName("object").WithTrailingTrivia(SyntaxFactory.Space);
+        }
 
         var displayName = senderType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
         var prefersAvaloniaObject = IsPropertyChangedEventArgs(originalEventArgsSymbol);
@@ -631,6 +800,11 @@ public static class RoutedEventConversionService
 
     private static TypeSyntax? MapSenderParameterTypeFromText(string typeText, ITypeSymbol? originalEventArgsSymbol)
     {
+        if (IsInputEventArgs(originalEventArgsSymbol) || IsInputEventArgs(typeText))
+        {
+            return SyntaxFactory.ParseTypeName("object").WithTrailingTrivia(SyntaxFactory.Space);
+        }
+
         var normalized = NormalizeTypeName(typeText);
         var prefersAvaloniaObject = IsPropertyChangedEventArgs(originalEventArgsSymbol);
         var prefersInteractive = IsRoutedEventArgs(originalEventArgsSymbol) || !prefersAvaloniaObject;
@@ -706,6 +880,40 @@ public static class RoutedEventConversionService
                string.Equals(eventArgsSymbol.Name, "TextCompositionEventArgs", StringComparison.Ordinal);
     }
 
+    private static bool IsInputEventArgs(ITypeSymbol? eventArgsSymbol)
+    {
+        if (eventArgsSymbol == null)
+            return false;
+
+        var displayName = eventArgsSymbol.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
+        if (displayName.IndexOf("global::System.Windows.Input.", StringComparison.Ordinal) >= 0 ||
+            displayName.IndexOf("global::Avalonia.Input.", StringComparison.Ordinal) >= 0)
+        {
+            return true;
+        }
+
+        return string.Equals(eventArgsSymbol.Name, "MouseEventArgs", StringComparison.Ordinal) ||
+               string.Equals(eventArgsSymbol.Name, "MouseButtonEventArgs", StringComparison.Ordinal) ||
+               string.Equals(eventArgsSymbol.Name, "PointerEventArgs", StringComparison.Ordinal) ||
+               string.Equals(eventArgsSymbol.Name, "PointerPressedEventArgs", StringComparison.Ordinal);
+    }
+
+    private static bool IsInputEventArgs(string typeText)
+    {
+        var normalized = NormalizeTypeName(typeText);
+
+        if (normalized.IndexOf("global::System.Windows.Input.", StringComparison.Ordinal) >= 0 ||
+            normalized.IndexOf("global::Avalonia.Input.", StringComparison.Ordinal) >= 0)
+        {
+            return true;
+        }
+
+        return normalized.EndsWith("MouseEventArgs", StringComparison.Ordinal) ||
+               normalized.EndsWith("MouseButtonEventArgs", StringComparison.Ordinal) ||
+               normalized.EndsWith("PointerEventArgs", StringComparison.Ordinal) ||
+               normalized.EndsWith("PointerPressedEventArgs", StringComparison.Ordinal);
+    }
+
     private static string NormalizeTypeName(string typeText)
     {
         var trimmed = typeText.Trim();
@@ -734,15 +942,28 @@ public static class RoutedEventConversionService
         var rewritten = method;
 
         var desiredSenderType = GetDefaultSenderType(eventArgsType);
-        if (desiredSenderType != null && parameters[0].Type != null)
+        if (parameters.Count > 1 && desiredSenderType != null && parameters[0].Type != null)
         {
-            rewritten = rewritten.ReplaceNode(parameters[0].Type!, desiredSenderType.WithTriviaFrom(parameters[0].Type!));
+            var normalizedSender = NormalizeTypeName(parameters[0].Type!.ToString());
+            if (IsPotentialWpfSenderType(normalizedSender))
+            {
+                rewritten = rewritten.ReplaceNode(parameters[0].Type!, desiredSenderType.WithTriviaFrom(parameters[0].Type!));
+            }
         }
 
         parameters = rewritten.ParameterList.Parameters;
         if (parameters.Count > 1 && parameters[1].Type != null)
         {
-            rewritten = rewritten.ReplaceNode(parameters[1].Type!, eventArgsType.WithTriviaFrom(parameters[1].Type!));
+            var currentTypeText = parameters[1].Type!.ToString();
+            var eventArgsText = eventArgsType.ToString();
+
+            var eventArgsIsGeneric = eventArgsText.IndexOf("Avalonia.Interactivity.RoutedEventArgs", StringComparison.Ordinal) >= 0;
+            var currentIsInput = currentTypeText.IndexOf("Avalonia.Input.", StringComparison.Ordinal) >= 0;
+
+            if (!(eventArgsIsGeneric && currentIsInput))
+            {
+                rewritten = rewritten.ReplaceNode(parameters[1].Type!, eventArgsType.WithTriviaFrom(parameters[1].Type!));
+            }
         }
 
         return rewritten;
@@ -756,7 +977,18 @@ public static class RoutedEventConversionService
             return SyntaxFactory.ParseTypeName("global::Avalonia.AvaloniaObject").WithTrailingTrivia(SyntaxFactory.Space);
         }
 
-        return SyntaxFactory.ParseTypeName("global::Avalonia.Interactivity.Interactive").WithTrailingTrivia(SyntaxFactory.Space);
+        if (eventArgsText.IndexOf("Avalonia.Input.", StringComparison.Ordinal) >= 0)
+        {
+            return SyntaxFactory.ParseTypeName("object").WithTrailingTrivia(SyntaxFactory.Space);
+        }
+
+        if (string.Equals(eventArgsText, "global::Avalonia.Interactivity.RoutedEventArgs", StringComparison.Ordinal) ||
+            string.Equals(eventArgsText, "Avalonia.Interactivity.RoutedEventArgs", StringComparison.Ordinal))
+        {
+            return SyntaxFactory.ParseTypeName("global::Avalonia.Interactivity.Interactive").WithTrailingTrivia(SyntaxFactory.Space);
+        }
+
+        return null;
     }
 
     private static SyntaxNode NormalizeRoutedEventHandlerSenders(SyntaxNode root)
@@ -782,9 +1014,19 @@ public static class RoutedEventConversionService
                 if (!IsPotentialWpfSenderType(normalizedSender))
                     return original;
 
-                var desiredSender = secondText.IndexOf("AvaloniaPropertyChangedEventArgs", StringComparison.Ordinal) >= 0
-                    ? SyntaxFactory.ParseTypeName("global::Avalonia.AvaloniaObject")
-                    : SyntaxFactory.ParseTypeName("global::Avalonia.Interactivity.Interactive");
+                TypeSyntax desiredSender;
+                if (secondText.IndexOf("AvaloniaPropertyChangedEventArgs", StringComparison.Ordinal) >= 0)
+                {
+                    desiredSender = SyntaxFactory.ParseTypeName("global::Avalonia.AvaloniaObject");
+                }
+                else if (secondText.IndexOf("Avalonia.Input.", StringComparison.Ordinal) >= 0)
+                {
+                    desiredSender = SyntaxFactory.ParseTypeName("object");
+                }
+                else
+                {
+                    desiredSender = SyntaxFactory.ParseTypeName("global::Avalonia.Interactivity.Interactive");
+                }
 
                 var updated = original.ReplaceNode(firstType, desiredSender.WithTriviaFrom(firstType));
                 updated = updated.ReplaceNode(secondType, SyntaxFactory.ParseTypeName(secondText).WithTriviaFrom(secondType));
@@ -817,34 +1059,40 @@ public static class RoutedEventConversionService
             case ObjectCreationExpressionSyntax objectCreation when objectCreation.ArgumentList != null:
                 foreach (var argument in objectCreation.ArgumentList.Arguments)
                 {
-                    if (semanticModel.GetSymbolInfo(argument.Expression).Symbol is IMethodSymbol targetMethod)
-                    {
-                        builder.Add(targetMethod);
-                    }
+                    AddMethodSymbols(semanticModel.GetSymbolInfo(argument.Expression), builder);
                 }
                 break;
 
             case IdentifierNameSyntax or MemberAccessExpressionSyntax:
             {
-                if (semanticModel.GetSymbolInfo(handlerExpression).Symbol is IMethodSymbol targetMethod)
-                {
-                    builder.Add(targetMethod);
-                }
+                AddMethodSymbols(semanticModel.GetSymbolInfo(handlerExpression), builder);
                 break;
             }
 
             case ParenthesizedLambdaExpressionSyntax or SimpleLambdaExpressionSyntax:
                 {
-                    var symbolInfo = semanticModel.GetSymbolInfo(handlerExpression);
-                    if (symbolInfo.Symbol is IMethodSymbol lambdaSymbol)
-                    {
-                        builder.Add(lambdaSymbol);
-                    }
+                    AddMethodSymbols(semanticModel.GetSymbolInfo(handlerExpression), builder);
                     break;
                 }
         }
 
         return builder.ToImmutable();
+    }
+
+    private static void AddMethodSymbols(SymbolInfo symbolInfo, ImmutableArray<IMethodSymbol>.Builder builder)
+    {
+        if (symbolInfo.Symbol is IMethodSymbol methodSymbol && methodSymbol.DeclaringSyntaxReferences.Length > 0)
+        {
+            builder.Add(methodSymbol);
+        }
+
+        foreach (var candidate in symbolInfo.CandidateSymbols)
+        {
+            if (candidate is IMethodSymbol candidateMethod && candidateMethod.DeclaringSyntaxReferences.Length > 0)
+            {
+                builder.Add(candidateMethod);
+            }
+        }
     }
 
     private static ITypeSymbol? GetHandlerTypeSymbol(ExpressionSyntax handlerExpression, SemanticModel semanticModel)
@@ -857,5 +1105,58 @@ public static class RoutedEventConversionService
 
         var symbol = semanticModel.GetSymbolInfo(handlerExpression).Symbol;
         return symbol as ITypeSymbol;
+    }
+
+    private static IEnumerable<MethodDeclarationSyntax> FindHandlerMethodDeclarations(SyntaxNode root, ExpressionSyntax handlerExpression)
+    {
+        var methodNames = new HashSet<string>(StringComparer.Ordinal);
+
+        switch (handlerExpression)
+        {
+            case IdentifierNameSyntax identifier:
+                methodNames.Add(identifier.Identifier.ValueText);
+                break;
+            case MemberAccessExpressionSyntax memberAccess:
+                methodNames.Add(memberAccess.Name.Identifier.ValueText);
+                break;
+            case ObjectCreationExpressionSyntax objectCreation:
+                if (objectCreation.ArgumentList?.Arguments.Count > 0)
+                {
+                    var firstArgument = objectCreation.ArgumentList.Arguments[0].Expression;
+                    if (firstArgument is IdentifierNameSyntax ctorIdentifier)
+                    {
+                        methodNames.Add(ctorIdentifier.Identifier.ValueText);
+                    }
+                    else if (firstArgument is MemberAccessExpressionSyntax ctorMemberAccess)
+                    {
+                        methodNames.Add(ctorMemberAccess.Name.Identifier.ValueText);
+                    }
+                }
+                break;
+        }
+
+        if (methodNames.Count == 0)
+            yield break;
+
+        var returned = new HashSet<MethodDeclarationSyntax>();
+        var containingType = handlerExpression.FirstAncestorOrSelf<TypeDeclarationSyntax>();
+        if (containingType != null)
+        {
+            foreach (var method in containingType.Members.OfType<MethodDeclarationSyntax>())
+            {
+                if (methodNames.Contains(method.Identifier.ValueText) && returned.Add(method))
+                {
+                    yield return method;
+                }
+            }
+        }
+
+        foreach (var method in root.DescendantNodes().OfType<MethodDeclarationSyntax>())
+        {
+            if (methodNames.Contains(method.Identifier.ValueText) && returned.Add(method))
+            {
+                yield return method;
+            }
+        }
     }
 }
