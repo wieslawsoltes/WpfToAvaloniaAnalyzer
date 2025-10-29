@@ -129,7 +129,7 @@ jobs:
           script: |
             const tag = context.ref.replace('refs/tags/', '');
             try {
-              const response = await github.repos.getReleaseByTag({
+              const response = await github.rest.repos.getReleaseByTag({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
                 tag
