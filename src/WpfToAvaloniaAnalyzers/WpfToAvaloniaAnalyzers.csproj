@@ -13,7 +13,6 @@
     <IsPackable>true</IsPackable>
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
     <PackageId>WpfToAvaloniaAnalyzers.Analyzers</PackageId>
-    <PackageVersion>1.0.0</PackageVersion>
     <Title>WpfToAvalonia Analyzers</Title>
     <Description>Core Roslyn analyzers that assist with migrating WPF applications to Avalonia UI.</Description>
     <PackageTags>roslyn;analyzer;wpf;avalonia;migration</PackageTags>

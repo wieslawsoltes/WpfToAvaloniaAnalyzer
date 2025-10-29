@@ -13,7 +13,6 @@
     <IsPackable>true</IsPackable>
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
     <PackageId>WpfToAvaloniaAnalyzers.CodeFixes</PackageId>
-    <PackageVersion>1.0.0</PackageVersion>
     <Title>WpfToAvalonia Code Fixes</Title>
     <Description>Roslyn code fix providers that automatically migrate WPF patterns to Avalonia equivalents.</Description>
     <PackageTags>roslyn;codefix;analyzer;wpf;avalonia;migration</PackageTags>

@@ -10,7 +10,7 @@
     <Authors Condition="'$(Authors)' == ''">Wieslaw Soltes</Authors>
     <Company Condition="'$(Company)' == ''">WpfToAvalonia</Company>
     <VersionPrefix Condition="'$(VersionPrefix)' == ''">0.1.0</VersionPrefix>
-    <VersionSuffix Condition="'$(VersionSuffix)' == ''"></VersionSuffix>
+    <VersionSuffix Condition="'$(VersionSuffix)' == ''">beta.1</VersionSuffix>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(IsPackable)' == 'true'">

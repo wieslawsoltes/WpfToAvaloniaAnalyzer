@@ -10,7 +10,6 @@
 
   <PropertyGroup>
     <PackageId>WpfToAvaloniaAnalyzers</PackageId>
-    <PackageVersion>1.0.0</PackageVersion>
     <Title>WpfToAvalonia Analyzer Bundle</Title>
     <Description>Primary NuGet package that bundles the WpfToAvalonia analyzers and code fixes for migrating WPF applications to Avalonia UI.</Description>
     <PackageTags>roslyn;analyzer;codefix;wpf;avalonia;migration</PackageTags>

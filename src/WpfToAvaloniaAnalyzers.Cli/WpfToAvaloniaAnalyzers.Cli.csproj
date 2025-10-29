@@ -10,7 +10,6 @@
     <PackAsTool>true</PackAsTool>
     <ToolCommandName>wpf-to-avalonia</ToolCommandName>
     <PackageId>WpfToAvaloniaAnalyzers.Cli</PackageId>
-    <PackageVersion>1.0.0</PackageVersion>
     <Title>WpfToAvalonia CLI</Title>
     <Description>Cross-platform command-line tool that applies WpfToAvalonia analyzers and code fixes in bulk.</Description>
     <PackageTags>roslyn;cli;codefix;analyzer;wpf;avalonia;migration</PackageTags>

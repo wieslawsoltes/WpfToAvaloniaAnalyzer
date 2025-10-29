@@ -33,6 +33,13 @@ Build the project (or run the IDE code analysis) to see diagnostics. Use your ID
 
 Prefer a more granular setup? Install `WpfToAvaloniaAnalyzers.Analyzers` for analyzer-only usage or `WpfToAvaloniaAnalyzers.CodeFixes` when you want to reference code fixes directly.
 
+## NuGet Packages
+
+- `WpfToAvaloniaAnalyzers` – Recommended default. Installing this bundle brings both the analyzer and code-fix packages into the project so IDEs surface diagnostics and offer fixes out of the box.
+- `WpfToAvaloniaAnalyzers.Analyzers` – Analyzer-only package. Use it when you want CI/build servers to run diagnostics without loading workspace dependencies required by code fixes.
+- `WpfToAvaloniaAnalyzers.CodeFixes` – Ships the Roslyn code-fix assemblies. Reference it if you are building custom tooling or hosting the workspace APIs yourself. The bundle already pulls this in automatically.
+- `WpfToAvaloniaAnalyzers.Cli` – .NET global/local tool that drives analyzers and fixes from the command line for batch migration scenarios.
+
 ## Usage
 
 1. Build your solution (`dotnet build`) or run the analyzer driver to surface the `WA###` diagnostics in the target project.
