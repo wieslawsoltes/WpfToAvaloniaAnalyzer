@@ -122,36 +122,11 @@ jobs:
     needs: prepare
     runs-on: ubuntu-latest
     steps:
-      - name: Check if release exists
-        id: release
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const tag = context.ref.replace('refs/tags/', '');
-            try {
-              const response = await github.rest.repos.getReleaseByTag({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                tag
-              });
-              core.setOutput('exists', 'true');
-              core.info(`Release for tag ${tag} already exists (id: ${response.data.id}).`);
-            } catch (error) {
-              const status = error.status || error.response?.status;
-              if (status === 404) {
-                core.setOutput('exists', 'false');
-                core.info(`No existing release found for tag ${tag}.`);
-              } else {
-                throw error;
-              }
-            }
-
       - name: Download packages
         uses: actions/download-artifact@v4
         with:
           name: packages
           path: artifacts/packages
-        if: steps.release.outputs.exists != 'true'
 
       - name: Create GitHub release
         uses: softprops/action-gh-release@v2
@@ -159,6 +134,5 @@ jobs:
           files: |
             artifacts/packages/*.nupkg
             artifacts/packages/*.snupkg
-        if: steps.release.outputs.exists != 'true'
     env:
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
