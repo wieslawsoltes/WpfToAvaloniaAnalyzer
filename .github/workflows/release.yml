@@ -11,10 +11,8 @@ env:
   NUGET_SOURCE: https://api.nuget.org/v3/index.json
 
 jobs:
-  publish:
+  prepare:
     runs-on: ubuntu-latest
-    env:
-      NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -51,16 +49,109 @@ jobs:
       - name: Pack
         run: dotnet pack WpfToAvaloniaAnalyzers.sln --configuration Release --no-build -p:ContinuousIntegrationBuild=true -p:Version=${VERSION} -p:IncludeSymbols=true -p:SymbolPackageFormat=snupkg -o artifacts/packages
 
+      - name: Remove empty symbol packages
+        run: |
+          shopt -s nullglob
+          for symbol in artifacts/packages/*.snupkg; do
+            if unzip -l "$symbol" | grep -q '\.pdb$'; then
+              echo "Keeping symbol package $symbol"
+            else
+              echo "Removing symbol package $symbol because it contains no PDB files"
+              rm "$symbol"
+            fi
+          done
+
+      - name: Upload packages
+        uses: actions/upload-artifact@v4
+        with:
+          name: packages
+          path: |
+            artifacts/packages/*.nupkg
+            artifacts/packages/*.snupkg
+          if-no-files-found: warn
+
+  publish-nuget:
+    needs: prepare
+    runs-on: ubuntu-latest
+    env:
+      NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}
+    steps:
+      - name: Download packages
+        uses: actions/download-artifact@v4
+        with:
+          name: packages
+          path: artifacts/packages
+
+      - name: Setup .NET SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 9.0.100
+
       - name: Publish packages to NuGet
         if: ${{ env.NUGET_API_KEY != '' }}
         run: |
           shopt -s nullglob
           for package in artifacts/packages/*.nupkg; do
-            dotnet nuget push "$package" --api-key "$NUGET_API_KEY" --source "$NUGET_SOURCE" --skip-duplicate
+            echo "Pushing package $package"
+            if push_output=$(dotnet nuget push "$package" --api-key "$NUGET_API_KEY" --source "$NUGET_SOURCE" --skip-duplicate 2>&1); then
+              printf '%s\n' "$push_output"
+            else
+              printf '%s\n' "$push_output"
+              if printf '%s\n' "$push_output" | grep -qiE 'already exists|409 \(Conflict\)'; then
+                echo "Package $package already exists on the feed. Skipping."
+              else
+                exit 1
+              fi
+            fi
           done
           for symbol in artifacts/packages/*.snupkg; do
-            dotnet nuget push "$symbol" --api-key "$NUGET_API_KEY" --source "$NUGET_SOURCE" --skip-duplicate
+            echo "Pushing symbol package $symbol"
+            if push_output=$(dotnet nuget push "$symbol" --api-key "$NUGET_API_KEY" --source "$NUGET_SOURCE" --skip-duplicate 2>&1); then
+              printf '%s\n' "$push_output"
+            else
+              printf '%s\n' "$push_output"
+              if printf '%s\n' "$push_output" | grep -qiE 'already exists|409 \(Conflict\)'; then
+                echo "Symbol package $symbol already exists on the feed. Skipping."
+              else
+                exit 1
+              fi
+            fi
           done
+
+  github-release:
+    needs: prepare
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check if release exists
+        id: release
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const tag = context.ref.replace('refs/tags/', '');
+            try {
+              const response = await github.repos.getReleaseByTag({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                tag
+              });
+              core.setOutput('exists', 'true');
+              core.info(`Release for tag ${tag} already exists (id: ${response.data.id}).`);
+            } catch (error) {
+              const status = error.status || error.response?.status;
+              if (status === 404) {
+                core.setOutput('exists', 'false');
+                core.info(`No existing release found for tag ${tag}.`);
+              } else {
+                throw error;
+              }
+            }
+
+      - name: Download packages
+        uses: actions/download-artifact@v4
+        with:
+          name: packages
+          path: artifacts/packages
+        if: steps.release.outputs.exists != 'true'
 
       - name: Create GitHub release
         uses: softprops/action-gh-release@v2
@@ -68,5 +159,6 @@ jobs:
           files: |
             artifacts/packages/*.nupkg
             artifacts/packages/*.snupkg
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        if: steps.release.outputs.exists != 'true'
+    env:
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
