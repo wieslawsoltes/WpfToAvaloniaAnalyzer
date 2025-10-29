@@ -1,0 +1,72 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+env:
+  DOTNET_SKIP_FIRST_TIME_EXPERIENCE: 1
+  DOTNET_NOLOGO: 1
+  NUGET_SOURCE: https://api.nuget.org/v3/index.json
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup .NET SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 9.0.100
+
+      - name: Cache NuGet packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.nuget/packages
+          key: ${{ runner.os }}-nuget-${{ hashFiles('**/*.csproj') }}
+          restore-keys: |
+            ${{ runner.os }}-nuget-
+
+      - name: Restore
+        run: dotnet restore WpfToAvaloniaAnalyzers.sln
+
+      - name: Build
+        run: dotnet build WpfToAvaloniaAnalyzers.sln --configuration Release --no-restore
+
+      - name: Test
+        run: dotnet test WpfToAvaloniaAnalyzers.sln --configuration Release --no-build
+
+      - name: Determine package version
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          echo "VERSION=$VERSION" >> "$GITHUB_ENV"
+
+      - name: Pack
+        run: dotnet pack WpfToAvaloniaAnalyzers.sln --configuration Release --no-build -p:ContinuousIntegrationBuild=true -p:Version=${VERSION} -p:IncludeSymbols=true -p:SymbolPackageFormat=snupkg -o artifacts/packages
+
+      - name: Publish packages to NuGet
+        if: ${{ secrets.NUGET_API_KEY != '' }}
+        env:
+          NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}
+        run: |
+          shopt -s nullglob
+          for package in artifacts/packages/*.nupkg; do
+            dotnet nuget push "$package" --api-key "$NUGET_API_KEY" --source "$NUGET_SOURCE" --skip-duplicate
+          done
+          for symbol in artifacts/packages/*.snupkg; do
+            dotnet nuget push "$symbol" --api-key "$NUGET_API_KEY" --source "$NUGET_SOURCE" --skip-duplicate
+          done
+
+      - name: Create GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            artifacts/packages/*.nupkg
+            artifacts/packages/*.snupkg
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

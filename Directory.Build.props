@@ -5,6 +5,7 @@
     <RepositoryUrl Condition="'$(RepositoryUrl)' == ''">https://github.com/wieslawsoltes/WpfToAvaloniaAnalyzer</RepositoryUrl>
     <RepositoryType Condition="'$(RepositoryType)' == ''">git</RepositoryType>
     <PackageReadmeFile Condition="'$(PackageReadmeFile)' == ''">README.md</PackageReadmeFile>
+    <PackageLicenseExpression Condition="'$(PackageLicenseExpression)' == ''">MIT</PackageLicenseExpression>
     <PackageRequireLicenseAcceptance Condition="'$(PackageRequireLicenseAcceptance)' == ''">false</PackageRequireLicenseAcceptance>
     <Authors Condition="'$(Authors)' == ''">Wieslaw Soltes</Authors>
     <Company Condition="'$(Company)' == ''">WpfToAvalonia</Company>
