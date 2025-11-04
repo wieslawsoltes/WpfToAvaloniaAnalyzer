@@ -1,0 +1,21 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(dotnet sln:*)",
+      "Bash(dotnet build:*)",
+      "Bash(dotnet run:*)",
+      "WebSearch",
+      "WebFetch(domain:www.nuget.org)",
+      "Bash(dotnet add:*)",
+      "WebFetch(domain:devblogs.microsoft.com)",
+      "Bash(dotnet new:*)",
+      "Bash(mkdir:*)",
+      "Bash(git diff:*)",
+      "Bash(dotnet test:*)",
+      "Bash(dotnet list:*)",
+      "WebFetch(domain:github.com)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

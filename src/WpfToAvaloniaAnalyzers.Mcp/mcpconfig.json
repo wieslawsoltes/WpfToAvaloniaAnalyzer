@@ -1,0 +1,32 @@
+{
+  "$schema": "./mcpconfig.schema.json",
+  "workspaceCache": {
+    "enabled": true,
+    "maxCachedWorkspaces": 5,
+    "idleTimeoutMinutes": 30,
+    "maxMemoryMB": 2048
+  },
+  "timeouts": {
+    "workspaceLoadTimeoutSeconds": 120,
+    "analysisTimeoutSeconds": 300,
+    "codeFixTimeoutSeconds": 600,
+    "requestTimeoutSeconds": 900
+  },
+  "parallelism": {
+    "enabled": true,
+    "maxDegreeOfParallelism": -1,
+    "maxConcurrentWorkspaceOperations": 3
+  },
+  "logging": {
+    "minimumLevel": "Information",
+    "writeToFile": true,
+    "logFilePath": null,
+    "includeDetailedDiagnostics": false
+  },
+  "security": {
+    "maxProjectSizeMB": 1024,
+    "maxFileCount": 10000,
+    "allowedRootPaths": [],
+    "validateFilePaths": true
+  }
+}

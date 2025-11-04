@@ -17,6 +17,14 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WpfToAvaloniaAnalyzers.Cli.
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WpfToAvaloniaAnalyzers.NuGet", "src\WpfToAvaloniaAnalyzers.NuGet\WpfToAvaloniaAnalyzers.NuGet.csproj", "{5BD9D6E5-1210-4F26-9BEA-FD3F737CA2F1}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{4130E7D1-41B7-49CA-A4C5-EA40992895F1}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WpfToAvaloniaAnalyzers.Mcp", "src\WpfToAvaloniaAnalyzers.Mcp\WpfToAvaloniaAnalyzers.Mcp.csproj", "{18AF5C5F-875F-4496-B28F-6A8C5702D7E9}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tests", "tests", "{0DB0F06B-C4BF-4866-A605-7C62478D316A}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WpfToAvaloniaAnalyzers.Mcp.Tests", "tests\WpfToAvaloniaAnalyzers.Mcp.Tests\WpfToAvaloniaAnalyzers.Mcp.Tests.csproj", "{D160177B-B222-49E7-A128-E0137C1F31A2}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -54,5 +62,17 @@ Global
 		{5BD9D6E5-1210-4F26-9BEA-FD3F737CA2F1}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{5BD9D6E5-1210-4F26-9BEA-FD3F737CA2F1}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{5BD9D6E5-1210-4F26-9BEA-FD3F737CA2F1}.Release|Any CPU.Build.0 = Release|Any CPU
+		{18AF5C5F-875F-4496-B28F-6A8C5702D7E9}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{18AF5C5F-875F-4496-B28F-6A8C5702D7E9}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{18AF5C5F-875F-4496-B28F-6A8C5702D7E9}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{18AF5C5F-875F-4496-B28F-6A8C5702D7E9}.Release|Any CPU.Build.0 = Release|Any CPU
+		{D160177B-B222-49E7-A128-E0137C1F31A2}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{D160177B-B222-49E7-A128-E0137C1F31A2}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{D160177B-B222-49E7-A128-E0137C1F31A2}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{D160177B-B222-49E7-A128-E0137C1F31A2}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{18AF5C5F-875F-4496-B28F-6A8C5702D7E9} = {4130E7D1-41B7-49CA-A4C5-EA40992895F1}
+		{D160177B-B222-49E7-A128-E0137C1F31A2} = {0DB0F06B-C4BF-4866-A605-7C62478D316A}
 	EndGlobalSection
 EndGlobal

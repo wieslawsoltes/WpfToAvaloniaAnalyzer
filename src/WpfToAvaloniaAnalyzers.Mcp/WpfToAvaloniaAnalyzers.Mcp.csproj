@@ -1,0 +1,42 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net9.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <IsPackable>true</IsPackable>
+    <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+    <PackAsTool>true</PackAsTool>
+    <ToolCommandName>wpf-to-avalonia-mcp</ToolCommandName>
+    <PackageId>WpfToAvaloniaAnalyzers.Mcp</PackageId>
+    <Title>WpfToAvalonia MCP Server</Title>
+    <Description>Model Context Protocol (MCP) server for WpfToAvalonia analyzers and code fixes. Enables AI coding agents to orchestrate WPF-to-Avalonia conversions.</Description>
+    <PackageTags>roslyn;mcp;codefix;analyzer;wpf;avalonia;migration;ai;agent</PackageTags>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\WpfToAvaloniaAnalyzers\WpfToAvaloniaAnalyzers.csproj" />
+    <ProjectReference Include="..\WpfToAvaloniaAnalyzers.CodeFixes\WpfToAvaloniaAnalyzers.CodeFixes.csproj" />
+    <ProjectReference Include="..\WpfToAvaloniaAnalyzers.Cli\WpfToAvaloniaAnalyzers.Cli.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Build.Locator" Version="1.10.2" />
+    <PackageReference Include="Microsoft.Build.Tasks.Core" Version="17.14.8" ExcludeAssets="runtime" />
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp.Workspaces" Version="4.14.0" />
+    <PackageReference Include="Microsoft.CodeAnalysis.Workspaces.MSBuild" Version="4.14.0" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="9.0.10" />
+    <PackageReference Include="Microsoft.Extensions.Hosting" Version="9.0.10" />
+    <PackageReference Include="Microsoft.Extensions.Logging" Version="9.0.10" />
+    <PackageReference Include="ModelContextProtocol" Version="0.4.0-preview.3" />
+    <!-- Override Directory.Build.props to use newer version required by MSBuild workspaces -->
+    <PackageReference Update="System.Text.Json" Version="9.0.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="mcpconfig.json" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="mcpconfig.schema.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+</Project>

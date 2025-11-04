@@ -1,0 +1,148 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "WpfToAvalonia MCP Server Configuration",
+  "description": "Configuration schema for the WpfToAvalonia Model Context Protocol server",
+  "type": "object",
+  "properties": {
+    "workspaceCache": {
+      "type": "object",
+      "description": "Workspace cache configuration",
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "description": "Whether workspace caching is enabled",
+          "default": true
+        },
+        "maxCachedWorkspaces": {
+          "type": "integer",
+          "description": "Maximum number of workspaces to cache",
+          "default": 5,
+          "minimum": 1
+        },
+        "idleTimeoutMinutes": {
+          "type": "integer",
+          "description": "Workspace idle timeout in minutes before eviction",
+          "default": 30,
+          "minimum": 1
+        },
+        "maxMemoryMB": {
+          "type": "integer",
+          "description": "Maximum memory usage in MB before cache eviction",
+          "default": 2048,
+          "minimum": 256
+        }
+      }
+    },
+    "timeouts": {
+      "type": "object",
+      "description": "Timeout configuration for various operations",
+      "properties": {
+        "workspaceLoadTimeoutSeconds": {
+          "type": "integer",
+          "description": "Timeout for workspace loading in seconds",
+          "default": 120,
+          "minimum": 10
+        },
+        "analysisTimeoutSeconds": {
+          "type": "integer",
+          "description": "Timeout for analysis operations in seconds",
+          "default": 300,
+          "minimum": 10
+        },
+        "codeFixTimeoutSeconds": {
+          "type": "integer",
+          "description": "Timeout for code fix operations in seconds",
+          "default": 600,
+          "minimum": 10
+        },
+        "requestTimeoutSeconds": {
+          "type": "integer",
+          "description": "Timeout for individual MCP requests in seconds",
+          "default": 900,
+          "minimum": 10
+        }
+      }
+    },
+    "parallelism": {
+      "type": "object",
+      "description": "Parallelism configuration for concurrent operations",
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "description": "Whether parallel processing is enabled",
+          "default": true
+        },
+        "maxDegreeOfParallelism": {
+          "type": "integer",
+          "description": "Maximum degree of parallelism (-1 for system default)",
+          "default": -1,
+          "minimum": -1
+        },
+        "maxConcurrentWorkspaceOperations": {
+          "type": "integer",
+          "description": "Maximum number of concurrent workspace operations",
+          "default": 3,
+          "minimum": 1
+        }
+      }
+    },
+    "logging": {
+      "type": "object",
+      "description": "Logging configuration",
+      "properties": {
+        "minimumLevel": {
+          "type": "string",
+          "description": "Minimum log level",
+          "enum": ["Trace", "Debug", "Information", "Warning", "Error", "Critical", "None"],
+          "default": "Information"
+        },
+        "writeToFile": {
+          "type": "boolean",
+          "description": "Whether to write logs to a file",
+          "default": true
+        },
+        "logFilePath": {
+          "type": ["string", "null"],
+          "description": "Log file path (null uses default ./logs/mcp-server.log)",
+          "default": null
+        },
+        "includeDetailedDiagnostics": {
+          "type": "boolean",
+          "description": "Whether to include detailed diagnostics in logs",
+          "default": false
+        }
+      }
+    },
+    "security": {
+      "type": "object",
+      "description": "Security configuration",
+      "properties": {
+        "maxProjectSizeMB": {
+          "type": "integer",
+          "description": "Maximum project size in MB to process",
+          "default": 1024,
+          "minimum": 1
+        },
+        "maxFileCount": {
+          "type": "integer",
+          "description": "Maximum number of files in a project to process",
+          "default": 10000,
+          "minimum": 1
+        },
+        "allowedRootPaths": {
+          "type": "array",
+          "description": "Allowed root paths for workspace access (empty = all allowed)",
+          "items": {
+            "type": "string"
+          },
+          "default": []
+        },
+        "validateFilePaths": {
+          "type": "boolean",
+          "description": "Whether to validate file paths for security",
+          "default": true
+        }
+      }
+    }
+  }
+}

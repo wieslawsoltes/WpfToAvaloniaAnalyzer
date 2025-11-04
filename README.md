@@ -5,7 +5,8 @@
 | `WpfToAvaloniaAnalyzers` (bundle) | [![NuGet](https://img.shields.io/nuget/v/WpfToAvaloniaAnalyzers.svg)](https://www.nuget.org/packages/WpfToAvaloniaAnalyzers/) [![NuGet Preview](https://img.shields.io/nuget/vpre/WpfToAvaloniaAnalyzers.svg)](https://www.nuget.org/packages/WpfToAvaloniaAnalyzers/absoluteLatest) [![NuGet Downloads](https://img.shields.io/nuget/dt/WpfToAvaloniaAnalyzers.svg)](https://www.nuget.org/packages/WpfToAvaloniaAnalyzers/) |
 | `WpfToAvaloniaAnalyzers.Analyzers` | [![NuGet](https://img.shields.io/nuget/v/WpfToAvaloniaAnalyzers.Analyzers.svg)](https://www.nuget.org/packages/WpfToAvaloniaAnalyzers.Analyzers/) [![NuGet Preview](https://img.shields.io/nuget/vpre/WpfToAvaloniaAnalyzers.Analyzers.svg)](https://www.nuget.org/packages/WpfToAvaloniaAnalyzers.Analyzers/absoluteLatest) |
 | `WpfToAvaloniaAnalyzers.CodeFixes` | [![NuGet](https://img.shields.io/nuget/v/WpfToAvaloniaAnalyzers.CodeFixes.svg)](https://www.nuget.org/packages/WpfToAvaloniaAnalyzers.CodeFixes/) [![NuGet Preview](https://img.shields.io/nuget/vpre/WpfToAvaloniaAnalyzers.CodeFixes.svg)](https://www.nuget.org/packages/WpfToAvaloniaAnalyzers.CodeFixes/absoluteLatest) |
-| `WpfToAvaloniaAnalyzers.Cli` (tool) | [![NuGet](https://img.shields.io/nuget/v/WpfToAvaloniaAnalyzers.Cli.svg)](https://www.nuget.org/packages/WpfToAvaloniaAnalyzers.Cli/) [![NuGet Preview](https://img.shields.io/nuget/vpre/WpfToAvaloniaAnalyzers.Cli.svg)](https://www.nuget.org/packages/WpfToAvaloniaAnalyzers.Cli/absoluteLatest) |
+| `WpfToAvaloniaAnalyzers.Cli` (tool) | [![NuGet](https://img.shields.io/nuget/v/WpfToAvaloniaAnalyzers.Cli.svg)](https://www.nuget.org/packages/WpfToAvaloniaAnalyzers.Cli/) [![NuGet Preview](https://img.shields.io/nuget/vpre/WpfToAvaloniaAnalyzers.Cli.svg)](https://www.nuget.org/packages/WpfToAvaloniaAnalyzers.Cli/absoluteLatest) [![NuGet Downloads](https://img.shields.io/nuget/dt/WpfToAvaloniaAnalyzers.Cli.svg)](https://www.nuget.org/packages/WpfToAvaloniaAnalyzers.Cli/) |
+| `WpfToAvaloniaAnalyzers.Mcp` (tool) | [![NuGet](https://img.shields.io/nuget/v/WpfToAvaloniaAnalyzers.Mcp.svg)](https://www.nuget.org/packages/WpfToAvaloniaAnalyzers.Mcp/) [![NuGet Preview](https://img.shields.io/nuget/vpre/WpfToAvaloniaAnalyzers.Mcp.svg)](https://www.nuget.org/packages/WpfToAvaloniaAnalyzers.Mcp/absoluteLatest) [![NuGet Downloads](https://img.shields.io/nuget/dt/WpfToAvaloniaAnalyzers.Mcp.svg)](https://www.nuget.org/packages/WpfToAvaloniaAnalyzers.Mcp/) |
 
 Roslyn analyzers and code fixes that accelerate migrating existing WPF code to Avalonia UI.
 
@@ -39,6 +40,7 @@ Prefer a more granular setup? Install `WpfToAvaloniaAnalyzers.Analyzers` for ana
 - `WpfToAvaloniaAnalyzers.Analyzers` – Analyzer-only package. Use it when you want CI/build servers to run diagnostics without loading workspace dependencies required by code fixes.
 - `WpfToAvaloniaAnalyzers.CodeFixes` – Ships the Roslyn code-fix assemblies. Reference it if you are building custom tooling or hosting the workspace APIs yourself. The bundle already pulls this in automatically.
 - `WpfToAvaloniaAnalyzers.Cli` – .NET global/local tool that drives analyzers and fixes from the command line for batch migration scenarios.
+- `WpfToAvaloniaAnalyzers.Mcp` – Model Context Protocol (MCP) server that enables AI agents like Claude, GitHub Copilot, and other LLM-based assistants to orchestrate WPF-to-Avalonia migrations through standardized MCP tools.
 
 ## Usage
 
@@ -51,6 +53,46 @@ Prefer a more granular setup? Install `WpfToAvaloniaAnalyzers.Analyzers` for ana
    ```
 
 3. Review converted files, resolve any follow-up notes emitted by the analyzer, and rebuild to ensure the project compiles against Avalonia.
+
+### AI-Assisted Migration with MCP Server
+
+The MCP server allows AI agents to analyze and migrate your WPF projects interactively:
+
+```bash
+# Install the MCP server as a global tool
+dotnet tool install -g WpfToAvaloniaAnalyzers.Mcp
+
+# Configure your AI agent (Claude Desktop, GitHub Copilot, etc.)
+# See docs/mcp/CLAUDE_DESKTOP_INTEGRATION.md or docs/mcp/GITHUB_COPILOT_INTEGRATION.md
+```
+
+**Example prompts:**
+
+```
+Analyze my WPF project at C:\Projects\MyApp\MyApp.csproj and create
+a migration plan with effort estimates.
+```
+
+```
+Convert all DependencyProperty issues in my project. Show me what will
+change first, then apply the fixes if I approve.
+```
+
+```
+I'm new to Avalonia. For each issue you find, explain the WPF pattern,
+the Avalonia equivalent, and why it needs to change.
+```
+
+The MCP server provides 10 tools for analysis, transformation, and project management:
+- **analyze_project** – Analyze projects for migration issues
+- **apply_fix** – Apply individual code fixes with preview
+- **batch_convert** – Batch convert multiple issues at once
+- **preview_fixes** – Preview changes before applying
+- **get_diagnostic_info** – Get detailed migration guidance
+- **validate_project** – Validate project structure
+- And more...
+
+See the [MCP Server Guide](docs/mcp/MCP_SERVER_GUIDE.md) for complete documentation, or check out the [Example Workflows](docs/mcp/EXAMPLE_WORKFLOWS.md) for real-world migration scenarios.
 
 ## Diagnostics & Fixers
 
@@ -434,10 +476,16 @@ The routed-event fixers cover the most common WPF patterns, but a few scenarios 
 - `src/WpfToAvaloniaAnalyzers` – Analyzer implementations and diagnostic descriptors.
 - `src/WpfToAvaloniaAnalyzers.CodeFixes` – All fixers plus reusable services (e.g., `ClassHandlerService`, batch fixer pipeline).
 - `src/WpfToAvaloniaAnalyzers.Cli` – Command-line batch fixer that executes the analyzers/code fixes.
+- `src/WpfToAvaloniaAnalyzers.Mcp` – Model Context Protocol (MCP) server for AI agent integration.
+  - `Services/` – MCPWorkspaceManager, MCPAnalysisService, MCPCodeFixService, WorkspaceFileWatcher.
+  - `Tools/` – AnalysisTools, TransformationTools, UtilityTools, WorkspaceTools, ServerInfoTools.
+  - `Configuration/` – Server configuration and settings management.
 - `src/WpfToAvaloniaAnalyzers.NuGet` – Packaged analyzer distributable.
 - `tests/WpfToAvaloniaAnalyzers.Tests` – Analyzer/code-fix regression tests. Helpers support optional compiler diagnostics so Avalonia references can be validated.
 - `tests/WpfToAvaloniaAnalyzers.Cli.Tests` – CLI integration coverage.
+- `tests/WpfToAvaloniaAnalyzers.Mcp.Tests` – MCP server unit tests (initialization, tool discovery, validation).
 - `samples/WpfToAvaloniaAnalyzers.Sample.Wpf` – Simple WPF app for manual migration experiments.
+- `docs/` – Comprehensive documentation for MCP server integration with AI agents.
 - `extern` – Vendored Avalonia sources referenced by the analyzers.
 
 ## Build & Test
@@ -463,6 +511,7 @@ You can also publish the constituent projects individually (the build produces p
 dotnet build src/WpfToAvaloniaAnalyzers/WpfToAvaloniaAnalyzers.csproj -c Release
 dotnet build src/WpfToAvaloniaAnalyzers.CodeFixes/WpfToAvaloniaAnalyzers.CodeFixes.csproj -c Release
 dotnet build src/WpfToAvaloniaAnalyzers.Cli/WpfToAvaloniaAnalyzers.Cli.csproj -c Release
+dotnet build src/WpfToAvaloniaAnalyzers.Mcp/WpfToAvaloniaAnalyzers.Mcp.csproj -c Release
 ```
 
 ## Contributing
